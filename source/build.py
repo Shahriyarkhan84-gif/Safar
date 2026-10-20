@@ -22,7 +22,7 @@ def draw_icon(key, S=1024):
     return im
 css = open('source/base.css').read(); core = open('source/core.js').read()
 RESET = ':root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;-webkit-tap-highlight-color:transparent}img{max-width:100%}[hidden]{display:none!important}'
-FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">'
+FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">' + '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>'
 APPS = {
   'rides': dict(name='Safar Rides', short='Safar Rides', js='source/rides.js', css='source/rides.css', cls='r', theme='#0f1226', bg='#0f1226',
      desc='Book a ride across Leeds in seconds.',
@@ -31,7 +31,7 @@ APPS = {
      desc='The Safar driver app: go online, accept rides and track your earnings.',
      icon='<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 30 30"><rect width="30" height="30" fill="#ff6f59"/><path d="M10 10 L20 20 M20 10 L10 20" stroke="#0a0d1c" stroke-width="3" stroke-linecap="round"/></svg>'),
 }
-SW = """const C='safar-shell-v3';
+SW = """const C='safar-shell-v4';
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(['./','manifest.webmanifest','icon-192.png'])).catch(()=>{}))});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;

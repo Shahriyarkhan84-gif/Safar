@@ -1,13 +1,14 @@
 /* ===== Safar shared core: used by both Safar Rides and Safar X ===== */
 const SB_URL = 'https://uprrsqqnnvpjevoujxmk.supabase.co';
 const SB_KEY = 'sb_publishable_eMwkhTp9QRaT2s6YM03kHg_ZSG4u3uN';
-const PX_PER_MILE = 40 / 0.7, FEE = 0.25, SIM_AFTER = 22000, REQ_WINDOW = 20000, POLL_MS = 2500;
+const FEE = 0.25, SIM_AFTER = 22000, REQ_WINDOW = 20000, POLL_MS = 2500;
 const FARE = { base: 2.5, mile: 1.25, min: 0.2, minimum: 5 };
+const CITY = { lat: 53.7997, lng: -1.5492 };
 const PLACES = {
-  home: { name: '14 Elm Street', area: 'Leeds LS6 2AB', x: 280, y: 200 }, station: { name: 'Leeds Station', area: 'New Station St, Leeds LS1 4DY', x: 160, y: 120 },
-  trinity: { name: 'Trinity Leeds', area: 'Albion St, Leeds LS1 5AT', x: 200, y: 80 }, uni: { name: 'University of Leeds', area: 'Woodhouse Ln, Leeds LS2 9JT', x: 120, y: 40 },
-  headingley: { name: 'Headingley Stadium', area: "St Michael's Ln, Leeds LS6 3BR", x: 40, y: 40 }, kirkstall: { name: 'Kirkstall Abbey', area: 'Abbey Rd, Leeds LS5 3EH', x: 40, y: 160 },
-  roundhay: { name: 'Roundhay Park', area: 'Mansion Ln, Leeds LS8 2HH', x: 320, y: 40 }, whiterose: { name: 'White Rose Centre', area: 'Dewsbury Rd, Leeds LS11 8LU', x: 120, y: 240 }
+  home: { name: '14 Elm Street', area: 'Hyde Park, Leeds LS6', lat: 53.8128, lng: -1.5640 }, station: { name: 'Leeds Station', area: 'New Station St, Leeds LS1 4DY', lat: 53.7950, lng: -1.5476 },
+  trinity: { name: 'Trinity Leeds', area: 'Albion St, Leeds LS1 5AT', lat: 53.7963, lng: -1.5440 }, uni: { name: 'University of Leeds', area: 'Woodhouse Ln, Leeds LS2 9JT', lat: 53.8067, lng: -1.5550 },
+  headingley: { name: 'Headingley Stadium', area: "St Michael's Ln, Leeds LS6 3BR", lat: 53.8170, lng: -1.5820 }, kirkstall: { name: 'Kirkstall Abbey', area: 'Abbey Rd, Leeds LS5 3EH', lat: 53.8203, lng: -1.6066 },
+  roundhay: { name: 'Roundhay Park', area: 'Mansion Ln, Leeds LS8 2HH', lat: 53.8390, lng: -1.4970 }, whiterose: { name: 'White Rose Centre', area: 'Dewsbury Rd, Leeds LS11 8LU', lat: 53.7590, lng: -1.5770 }
 };
 const TYPES = {
   go: { name: 'Safar Go', seats: 4, mult: 1, blurb: 'Everyday rides' },
@@ -16,10 +17,10 @@ const TYPES = {
   xl: { name: 'Safar XL', seats: 6, mult: 1.65, blurb: 'Groups and luggage' }
 };
 const SIM = [
-  { name: 'Ayesha Malik', car: 'Toyota Prius', colour: 'White', plate: 'YK70 TFR', rating: 4.95, types: ['go'], pos: { x: 200, y: 160 } },
-  { name: 'Tom Brennan', car: 'Škoda Octavia', colour: 'Grey', plate: 'LS19 KJD', rating: 4.88, types: ['go', 'comfort'], pos: { x: 80, y: 80 } },
-  { name: 'Imran Shah', car: 'Kia Niro EV', colour: 'Blue', plate: 'YB22 NWA', rating: 4.91, types: ['go', 'green'], pos: { x: 240, y: 40 } },
-  { name: 'Grace Okafor', car: 'Ford Galaxy', colour: 'Black', plate: 'LN68 XLG', rating: 4.97, types: ['go', 'xl'], pos: { x: 40, y: 200 } }
+  { name: 'Ayesha Malik', car: 'Toyota Prius', colour: 'White', plate: 'YK70 TFR', rating: 4.95, types: ['go'], pos: { lat: 53.8010, lng: -1.5390 } },
+  { name: 'Tom Brennan', car: 'Škoda Octavia', colour: 'Grey', plate: 'LS19 KJD', rating: 4.88, types: ['go', 'comfort'], pos: { lat: 53.8100, lng: -1.5720 } },
+  { name: 'Imran Shah', car: 'Kia Niro EV', colour: 'Blue', plate: 'YB22 NWA', rating: 4.91, types: ['go', 'green'], pos: { lat: 53.8240, lng: -1.5250 } },
+  { name: 'Grace Okafor', car: 'Ford Galaxy', colour: 'Black', plate: 'LN68 XLG', rating: 4.97, types: ['go', 'xl'], pos: { lat: 53.7760, lng: -1.5650 } }
 ];
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -51,27 +52,45 @@ async function rpc(fn, args) {
   return j;
 }
 
-/* ---------- geometry & pricing ---------- */
-const path = (a, b) => [a, { x: b.x, y: a.y }, b];
-function len(p) { let d = 0; for (let i = 1; i < p.length; i++) d += Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y); return d; }
+/* ---------- geometry & pricing: real Leeds coordinates, road routes from OpenStreetMap ---------- */
+const rad = d => d * Math.PI / 180;
+function hav(a, b) { const h = Math.sin(rad(b.lat - a.lat) / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lng - a.lng) / 2) ** 2; return 2 * 3958.8 * Math.asin(Math.sqrt(h)); }
+const pt = p => p && p.lat != null ? { lat: +p.lat, lng: +p.lng } : { ...CITY };
+const rkey = (a, b) => [a.lat, a.lng, b.lat, b.lng].map(n => (+n).toFixed(4)).join(',');
+const ROUTES = LS.get('safar-routes', {}), routeWait = new Set();
+function path(a, b) { a = pt(a); b = pt(b); const k = rkey(a, b); if (ROUTES[k]) return ROUTES[k]; fetchRoute(a, b, k); return [a, b]; }
+async function fetchRoute(a, b, k) {
+  if (routeWait.has(k) || hav(a, b) < 0.02) return; routeWait.add(k);
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=simplified&geometries=geojson`);
+    const c = (await r.json()).routes[0].geometry.coordinates;
+    if (c.length > 1) {
+      ROUTES[k] = c.map(([lng, lat]) => ({ lat: +lat.toFixed(5), lng: +lng.toFixed(5) }));
+      const keys = Object.keys(ROUTES); if (keys.length > 80) delete ROUTES[keys[0]];
+      LS.set('safar-routes', ROUTES); MAP.key = ''; render();
+    }
+  } catch (e) {}
+}
+function len(p) { let d = 0; for (let i = 1; i < p.length; i++) d += hav(p[i - 1], p[i]); return d; }
+const roadMiles = (a, b) => { const p = path(a, b); return p.length > 2 ? len(p) : hav(pt(a), pt(b)) * 1.3; };
 function pointAt(p, t) {
   let goal = Math.min(1, Math.max(0, t)) * len(p);
   for (let i = 1; i < p.length; i++) {
-    const d = Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y);
-    if (goal <= d || i === p.length - 1) { const f = d ? Math.min(1, goal / d) : 1; return { x: p[i - 1].x + (p[i].x - p[i - 1].x) * f, y: p[i - 1].y + (p[i].y - p[i - 1].y) * f, a: d ? Math.atan2(p[i].y - p[i - 1].y, p[i].x - p[i - 1].x) * 180 / Math.PI : 0 }; }
+    const A = p[i - 1], B = p[i], d = hav(A, B);
+    if (goal <= d || i === p.length - 1) { const f = d ? Math.min(1, goal / d) : 1; return { lat: A.lat + (B.lat - A.lat) * f, lng: A.lng + (B.lng - A.lng) * f, a: d ? Math.atan2(-(B.lat - A.lat), (B.lng - A.lng) * Math.cos(rad(A.lat))) * 180 / Math.PI : 0 }; }
     goal -= d;
   }
-  const e = p[p.length - 1]; return { x: e.x, y: e.y, a: 0 };
+  const e = p[p.length - 1]; return { lat: e.lat, lng: e.lng, a: 0 };
 }
 function fareFor(from, to, type) {
-  const miles = len(path(PLACES[from], PLACES[to])) / PX_PER_MILE, mins = Math.round(miles * 3.2 + 3), m = TYPES[type].mult;
+  const miles = roadMiles(PLACES[from], PLACES[to]), mins = Math.round(miles * 3.2 + 3), m = TYPES[type].mult;
   const parts = { base: FARE.base * m, dist: FARE.mile * miles * m, time: FARE.min * mins * m };
   const full = Math.max(parts.base + parts.dist + parts.time, FARE.minimum * m), off = TYPES[type].promo ? full * TYPES[type].promo : 0;
   if (off) parts.promo = -off;
   return { miles, mins, parts, full: Math.round(full * 100) / 100, fare: Math.round((full - off) * 100) / 100 };
 }
-const minsBetween = (a, b) => Math.max(1, Math.round(len(path(a, b)) / PX_PER_MILE * 3 + 1));
-const nearestSim = (pt, type) => SIM.filter(d => d.types.includes(type)).sort((a, b) => len(path(a.pos, pt)) - len(path(b.pos, pt)))[0];
+const minsBetween = (a, b) => Math.max(1, Math.round(roadMiles(a, b) * 3 + 1));
+const nearestSim = (p, type) => SIM.filter(d => d.types.includes(type)).sort((a, b) => hav(a.pos, p) - hav(b.pos, p))[0];
 
 /* ---------- trip phases, derived from timestamps so both phones agree ---------- */
 function phase(t, now = Date.now()) {
@@ -87,10 +106,10 @@ function progress(t, now = Date.now()) {
 }
 function carPos(t, now = Date.now()) {
   const ph = phase(t, now), A = PLACES[t.from], B = PLACES[t.to];
-  if (ph === 'arriving') return pointAt(path(t.start, A), progress(t, now));
-  if (ph === 'arrived') return { ...A, a: 0 };
+  if (ph === 'arriving') return pointAt(path(t.start && t.start.lat != null ? t.start : A, A), progress(t, now));
+  if (ph === 'arrived') return { ...pt(A), a: 0 };
   if (ph === 'ontrip') return pointAt(path(A, B), progress(t, now));
-  return { ...B, a: 0 };
+  return { ...pt(B), a: 0 };
 }
 function etaText(t) {
   const ph = phase(t), p = progress(t);
@@ -110,30 +129,40 @@ function toast(who, text) {
 }
 const LOGO_R = `<svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="9" fill="#e8c07a"/><path d="M8.5 20 C 11 9, 19 21, 21.5 10" fill="none" stroke="#1a1406" stroke-width="2.6" stroke-linecap="round"/><circle cx="8.5" cy="20" r="2.4" fill="#e8c07a" stroke="#1a1406" stroke-width="1.8"/><rect x="19.3" y="7.8" width="4.4" height="4.4" fill="#1a1406"/></svg>`;
 const LOGO_X = `<svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="9" fill="#ff6f59"/><path d="M9.5 9.5 L20.5 20.5 M20.5 9.5 L9.5 20.5" stroke="#0a0d1c" stroke-width="3.4" stroke-linecap="round"/></svg>`;
-const carIcon = type => { const c = type === 'green' ? 'var(--ok)' : type === 'comfort' ? 'var(--muted)' : 'var(--car)'; const w = type === 'xl' ? 48 : 44; return `<svg viewBox="0 0 52 30" aria-hidden="true"><rect x="2" y="12" width="${w}" height="11" rx="4" fill="${c}"/><path d="M10 12 L16 5 H${type === 'xl' ? 40 : 32} L${type === 'xl' ? 46 : 40} 12 Z" fill="${c}" opacity=".75"/><circle cx="12" cy="23" r="4" fill="var(--surface)" stroke="var(--car)" stroke-width="2"/><circle cx="${w - 8}" cy="23" r="4" fill="var(--surface)" stroke="var(--car)" stroke-width="2"/></svg>`; };
-function mapSVG(o) {
-  const A = o.from && PLACES[o.from], B = o.to && PLACES[o.to];
-  let streets = '';
-  for (let x = 0; x <= 360; x += 40) streets += `<line x1="${x}" y1="-10" x2="${x}" y2="270"/>`;
-  for (let y = 0; y <= 260; y += 40) streets += `<line x1="-10" y1="${y}" x2="370" y2="${y}"/>`;
-  const labels = Object.entries(PLACES).map(([k, p]) => {
-    const hot = k === o.from || k === o.to, anchor = p.x > 300 ? 'end' : p.x < 60 ? 'start' : 'middle';
-    return `${hot ? '' : `<circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--muted)"/>`}<text class="lbl ${hot ? 'hot' : ''}" x="${p.x}" y="${p.y - 9}" text-anchor="${anchor}">${esc(p.name)}</text>`;
-  }).join('');
-  const car = (c, mine) => `<g ${c.id ? `data-car="${c.id}"` : ''} transform="translate(${c.x.toFixed(1)} ${c.y.toFixed(1)}) rotate(${(c.a || 0).toFixed(0)})">${mine ? '<circle r="15" fill="var(--accent)" opacity=".2"/>' : ''}<rect x="-8" y="-5" width="16" height="10" rx="3.5" fill="${mine ? 'var(--accent)' : 'var(--car)'}" stroke="var(--surface)" stroke-width="1.5"/><rect x="0" y="-3.6" width="4.5" height="7.2" rx="1.4" fill="var(--surface)" opacity=".75"/></g>`;
-  return `<svg class="map" viewBox="-10 -10 380 280" role="img" aria-label="Map of Leeds${A && B ? ' with the route from ' + esc(A.name) + ' to ' + esc(B.name) : ''}">
-    <rect x="-10" y="-10" width="380" height="280" fill="var(--ground)"/>
-    <rect x="286" y="6" width="74" height="50" rx="10" fill="var(--park)"/><rect x="-4" y="124" width="58" height="52" rx="10" fill="var(--park)"/>
-    <path d="M-10 100 C 60 90, 110 112, 170 100 S 290 92, 370 104" fill="none" stroke="var(--water)" stroke-width="9" stroke-linecap="round"/>
-    <g stroke="var(--road)" stroke-width="8" stroke-linecap="round">${streets}</g>
-    ${o.approach && A ? `<polyline points="${path(o.approach, A).map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-dasharray="1 7" stroke-linecap="round"/>` : ''}
-    ${A && B ? `<polyline points="${path(A, B).map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--route,var(--ink))" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
-    ${labels}
-    ${A ? `<g transform="translate(${A.x} ${A.y})"><circle r="8" fill="var(--ground)" stroke="var(--accent)" stroke-width="4"/></g>` : ''}
-    ${B ? `<g transform="translate(${B.x} ${B.y})"><rect x="-8" y="-8" width="16" height="16" rx="2" fill="var(--route,var(--ink))"/><rect x="-3" y="-3" width="6" height="6" fill="var(--ground)"/></g>` : ''}
-    ${(o.cars || []).map(c => car(c, false)).join('')}${o.mine ? car(o.mine, true) : ''}
-  </svg>`;
+/* ---------- live map (Leaflet + OpenStreetMap tiles, darkened with a CSS filter). One map is kept alive and moved into each screen's slot. ---------- */
+const MAP = { el: null, map: null, layer: null, cars: {}, key: '' };
+const mapSlot = (o, cls = '') => `<div class="mapslot ${cls}" data-map="${esc(JSON.stringify(o))}" role="img" aria-label="Map of Leeds"></div>`;
+const carHTML = (a, mine) => `<div class="mcar${mine ? ' mine' : ''}" style="transform:rotate(${Math.round(a || 0)}deg)"><svg viewBox="-13 -8 26 16"><rect x="-11" y="-6.5" width="22" height="13" rx="4.5"/><rect x="2.5" y="-5" width="5" height="10" rx="1.6" class="gl"/></svg></div>`;
+function mountMap() {
+  const slot = document.querySelector('.mapslot'); if (!slot) return;
+  if (!window.L) { slot.classList.add('nomap'); slot.textContent = 'Map unavailable offline'; return; }
+  if (!MAP.map) {
+    MAP.el = document.createElement('div'); MAP.el.className = 'lmap';
+    MAP.map = L.map(MAP.el, { zoomControl: false, attributionControl: true, center: [CITY.lat, CITY.lng], zoom: 13 });
+    MAP.map.attributionControl.setPrefix(false);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(MAP.map);
+    MAP.layer = L.layerGroup().addTo(MAP.map);
+  }
+  slot.appendChild(MAP.el); MAP.map.invalidateSize({ animate: false });
+  const o = JSON.parse(slot.dataset.map), k = JSON.stringify({ ...o, mine: o.mine ? o.mine.id || 'me' : null });
+  if (k !== MAP.key) { MAP.key = k; drawMap(o); } else if (o.mine) moveCar(o.mine.id || 'me', o.mine);
 }
+function drawMap(o) {
+  const m = MAP.map, css = getComputedStyle(document.documentElement), accent = css.getPropertyValue('--accent').trim() || '#e8c07a', ink = css.getPropertyValue('--ink').trim() || '#fff';
+  MAP.layer.clearLayers(); MAP.cars = {};
+  ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom'].forEach(h => m[h][o.still ? 'disable' : 'enable']());
+  const A = o.from && PLACES[o.from], B = o.to && PLACES[o.to], pts = [];
+  const label = (p, text) => L.marker([p.lat, p.lng], { opacity: 0, interactive: false }).bindTooltip(esc(text), { permanent: true, direction: 'top', className: 'mlabel', offset: [0, -6] }).addTo(MAP.layer);
+  if (o.approach && A) { const p = path(o.approach, A); L.polyline(p.map(x => [x.lat, x.lng]), { color: accent, weight: 4, dashArray: '2 8', lineCap: 'round', opacity: .9 }).addTo(MAP.layer); pts.push(...p); }
+  if (A && B) { const p = path(A, B); L.polyline(p.map(x => [x.lat, x.lng]), { color: ink, weight: 5, opacity: .95 }).addTo(MAP.layer); pts.push(...p); }
+  if (A) { L.circleMarker([A.lat, A.lng], { radius: 7, color: accent, weight: 4, fillColor: '#111', fillOpacity: 1 }).addTo(MAP.layer); label(A, A.name); pts.push(A); }
+  if (B) { L.marker([B.lat, B.lng], { icon: L.divIcon({ className: 'mend', iconSize: [14, 14] }), interactive: false }).addTo(MAP.layer); label(B, B.name); pts.push(B); }
+  (o.cars || []).forEach(c => L.marker([c.lat, c.lng], { icon: L.divIcon({ className: 'mcarwrap', html: carHTML(c.a), iconSize: [26, 26] }), interactive: false }).addTo(MAP.layer));
+  if (o.mine) { MAP.cars[o.mine.id || 'me'] = L.marker([o.mine.lat, o.mine.lng], { icon: L.divIcon({ className: 'mcarwrap', html: carHTML(o.mine.a, true), iconSize: [30, 30] }), interactive: false, zIndexOffset: 500 }).addTo(MAP.layer); pts.push(o.mine); }
+  if (pts.length > 1) m.fitBounds(L.latLngBounds(pts.map(x => [x.lat, x.lng])), { padding: [36, 36], maxZoom: 15, animate: false });
+  else m.setView(pts[0] ? [pts[0].lat, pts[0].lng] : [CITY.lat, CITY.lng], o.zoom || 14, { animate: false });
+}
+function moveCar(id, p) { const mk = MAP.cars[id]; if (!mk) return; mk.setLatLng([p.lat, p.lng]); const el = mk.getElement && mk.getElement(); const c = el && el.querySelector('.mcar'); if (c) c.style.transform = `rotate(${Math.round(p.a || 0)}deg)`; }
 
 /* ---------- account: log in and sign up (shared by both apps) ---------- */
 const Account = {
@@ -149,33 +178,6 @@ const Account = {
   }
 };
 const authUI = { step: 'start', ident: '', kind: 'phone', draft: { name: '', email: '', phone: '', password: '', terms: false }, err: '', busy: false, show: false };
-function heroArt(o) {
-  const cars = Array.from({ length: 12 }, (_, i) => {
-    const a = i * 30, r = 98, x = 160 + r * Math.sin(a * Math.PI / 180), y = 130 - r * Math.cos(a * Math.PI / 180);
-    return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${a})"><rect x="-18" y="-9.5" width="36" height="19" rx="8" fill="${o.car}" stroke="${o.carEdge}" stroke-width="1.2"/><rect x="3" y="-7.5" width="8" height="15" rx="2.5" fill="${o.glass}"/><rect x="-12" y="-7" width="6" height="14" rx="2" fill="${o.glass}"/><rect x="-18" y="-7.5" width="2.6" height="4" rx="1" fill="${o.light}"/><rect x="-18" y="3.5" width="2.6" height="4" rx="1" fill="${o.light}"/></g>`;
-  }).join('');
-  const pts = Array.from({ length: 24 }, (_, i) => { const a = i * 15 * Math.PI / 180, r = i % 2 ? 46 : 53; return `${(160 + r * Math.sin(a)).toFixed(1)},${(130 - r * Math.cos(a)).toFixed(1)}`; }).join(' ');
-  return `<svg class="heroart" viewBox="0 0 320 260" role="img" aria-label="${esc(o.label)}"><rect width="320" height="260" fill="${o.bg}"/>${cars}<polygon points="${pts}" fill="${o.badge}" stroke="${o.bg}" stroke-width="8" stroke-linejoin="round"/>${o.center}</svg>`;
-}
-/* Night Route welcome art: a city at night with one glowing route from a ring to a square */
-function routeHero(o) {
-  let streets = '';
-  for (let x = 20; x <= 320; x += 50) streets += `<line x1="${x}" y1="0" x2="${x}" y2="260"/>`;
-  for (let y = 25; y <= 260; y += 50) streets += `<line x1="0" y1="${y}" x2="320" y2="${y}"/>`;
-  const stars = [[24, 18], [70, 34], [118, 12], [210, 22], [300, 70], [36, 84], [286, 14]].map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 3 ? 1.2 : 1.8}" fill="#f3f1ea" opacity="${i % 2 ? .5 : .8}"/>`).join('');
-  const route = 'M62 214 C 62 170, 118 176, 140 140 S 214 104, 236 80 S 258 54, 262 44';
-  const car = (x, y, a) => `<g transform="translate(${x} ${y}) rotate(${a})"><rect x="-11" y="-6" width="22" height="12" rx="4" fill="#f3f1ea"/><rect x="2" y="-4.5" width="5" height="9" rx="1.5" fill="#0f1226"/></g>`;
-  return `<svg class="heroart" viewBox="0 0 320 260" role="img" aria-label="${esc(o.label)}"><rect width="320" height="260" fill="${o.bg}"/>
-    <rect x="196" y="150" width="96" height="70" rx="14" fill="#15302a"/><rect x="18" y="40" width="64" height="58" rx="14" fill="#15302a"/>
-    <path d="M-10 120 C 60 104, 110 132, 170 118 S 280 100, 330 116" fill="none" stroke="#16284a" stroke-width="12" stroke-linecap="round"/>
-    <g stroke="#1e2340" stroke-width="9" stroke-linecap="round">${streets}</g>${stars}
-    <path d="${route}" fill="none" stroke="${o.accent}" stroke-width="20" stroke-linecap="round" opacity=".16"/>
-    <path d="${route}" fill="none" stroke="${o.accent}" stroke-width="6" stroke-linecap="round"/>
-    ${car(104, 172, -30)}${car(214, 98, -38)}${car(40, 150, 90)}${car(290, 204, 0)}
-    <circle cx="62" cy="214" r="12" fill="${o.bg}" stroke="${o.accent}" stroke-width="6"/>
-    <rect x="250" y="32" width="24" height="24" rx="3" fill="${o.accent}"/><rect x="257" y="39" width="10" height="10" fill="${o.bg}"/>
-    <g transform="translate(170 26)"><rect width="66" height="30" rx="15" fill="${o.accent}"/><text x="33" y="20" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="13" fill="${o.ink}">${esc(o.tag)}</text></g></svg>`;
-}
 /* progress ring: frac 0..1 */
 const ring = (frac, size, o = {}) => `<div class="ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" stroke="var(--line)" stroke-width="${o.w || 8}"/><circle ${o.attr || ''} cx="50" cy="50" r="44" pathLength="100" stroke="${o.color || 'var(--accent)'}" stroke-width="${o.w || 8}" stroke-dasharray="${(Math.max(0, Math.min(1, frac)) * 100).toFixed(1)} 100"/></svg><div class="in">${o.inner || ''}</div></div>`;
 function authView(o) {
@@ -200,7 +202,7 @@ function authView(o) {
       <button class="btn block authgo" data-act="signup" ${busy}>${s.busy ? 'Creating your account…' : 'Create account'}</button>
       <p class="small center">Already have an account? <button class="linkbtn" data-act="authStep" data-step="start">Log in</button></p></div>`;
   } else {
-    body = `${o.hero ? routeHero(o.hero) : heroArt(o.art)}<div class="authbody"><h1 class="authh big">${o.headline}</h1>
+    body = `${mapSlot({ still: true, zoom: 13 }, 'hero')}<div class="authbody"><span class="brandmini">${o.logo}${esc(APP_NAME)}</span><h1 class="authh big">${o.headline}</h1>
       <label class="field"><span class="sr">Email or mobile number</span><input id="au-ident" class="identbox" data-ident type="text" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" value="${esc(s.ident)}" placeholder="Enter email or mobile number"></label>
       ${err}
       <button class="btn block authgo" data-act="authContinue" ${busy}>${s.busy ? 'Checking…' : 'Continue'}</button>
@@ -264,6 +266,7 @@ function render(force) {
   document.documentElement.classList.toggle('authscreen', !Account.token);
   document.getElementById('app').innerHTML = view();
   lastKey = viewKey();
+  mountMap();
 }
 let lastKey = '';
 document.addEventListener('focusout', () => setTimeout(() => { if (pendingRender) render(); }, 0));

@@ -1,55 +1,50 @@
-/* Safar Rides in the Night Route design: night-blue ground, sandstone route, coral for offers. */
+/* Safar Rides: dark, one main colour (sandstone gold), plain lists, the map first. */
 html:root.r.r{
-  --bg:#0f1226; --surface:#191d36; --card:#222747; --ink:#f3f1ea; --muted:#a3a6c0; --line:#2e3458; --chip:#222747;
-  --accent:#e8c07a; --accent-ink:#1a1406; --accent-soft:#3a3222; --amber:#e8c07a; --amber-soft:#3a3222;
-  --danger:#ff6f59; --danger-soft:#3b1e22; --ok:#3dd6b5; --ok-soft:#123a35; --promo:#ff6f59;
-  --road:#1e2340; --ground:#12162b; --park:#15302a; --water:#16284a; --car:#f3f1ea; --route:#e8c07a; --notch:#0f1226; color-scheme:dark }
+  --bg:#0e1020; --surface:#171a2c; --card:#171a2c; --ink:#f2f1ec; --muted:#9c9fb4; --line:#272b40; --chip:#20243a;
+  --accent:#e8c07a; --accent-ink:#17120a; --accent-soft:#2e2819; --amber:#e8c07a; --amber-soft:#2e2819;
+  --danger:#ef7a6a; --danger-soft:#2e1c1d; --ok:#e8c07a; --ok-soft:#2e2819; --promo:#e8c07a;
+  --road:#1e2236; --ground:#11131f; --park:#13201b; --water:#14203a; --car:#f2f1ec; color-scheme:dark }
 html.r body{font-size:16px}
-html.r .wrap{padding-block:12px 120px}
+html.r .wrap{padding-block:12px 96px}
 html.r .wrap.flush{padding-block:12px 40px}
-html.r .sheet{border-radius:24px}
-html.r .btn{border-radius:14px}
-html.r .btn.line{color:var(--ink)}
-html.r .ride{border-radius:18px;border-width:1.5px;background:var(--card)}
+html.r .btn{border-radius:12px}
+html.r .ride{border-radius:14px;border-width:1.5px;background:transparent}
 html.r .ride[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
-html.r .ride .fare{border-left:2px dashed var(--line);padding-left:12px;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
-html.r .ride svg{width:60px;height:38px}
-html.r .ride{grid-template-columns:60px 1fr auto}
-html.r .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
-html.r .tips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-html.r .avatar{background:var(--accent-soft);color:var(--accent)}
-html.r .pill{background:var(--accent-soft);color:var(--accent)}
+html.r .ride svg{width:56px;height:34px}
+html.r .ride{grid-template-columns:56px 1fr auto}
+html.r .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+html.r .tips button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+html.r .avatar{background:var(--chip);color:var(--ink)}
+html.r .pill{background:var(--chip);color:var(--ink)}
 
-.where-b{font:800 1.45rem var(--display);letter-spacing:-.02em}
+.where{display:flex;align-items:center;gap:10px;background:var(--chip);border-radius:14px;padding:6px 6px 6px 16px}
+.where > button.go{flex:1;display:flex;align-items:center;gap:12px;border:0;background:none;color:var(--ink);font:600 1.15rem var(--body);cursor:pointer;padding:10px 0;min-width:0;text-align:left}
+.where > button.go svg{width:22px;height:22px;flex:none}
+.later{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;background:var(--bg);color:var(--ink);font:600 .9rem var(--body);padding:10px 14px;cursor:pointer;white-space:nowrap}
+.later svg{width:18px;height:18px}
+.pickrow{display:flex;align-items:center;gap:8px;border:0;background:none;color:var(--muted);font:500 .92rem var(--body);padding:0;cursor:pointer;text-align:left}
+.pickrow b{color:var(--ink);font-weight:600}
+.pickrow i{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
 .whenrow{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-.whenrow button{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:9px 14px;font:600 .9rem var(--body);cursor:pointer}
-.whenrow button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.tixrow .ticket b{font:800 1.2rem/1.15 var(--display);letter-spacing:-.01em}
-.tixrow .ticket small{color:var(--muted);font-size:.86rem}
-.tixrow .ticket svg{width:72px;height:46px}
-.tixrow .stub{font:600 .85rem var(--mono);color:var(--accent)}
-
+.whenrow button{flex:none;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:8px 14px;font:600 .88rem var(--body);cursor:pointer}
+.whenrow button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ways{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin-right:calc(-1 * max(16px, env(safe-area-inset-right, 0px)))}
+.way{flex:none;width:148px;display:flex;flex-direction:column;gap:6px;border:0;border-radius:14px;background:var(--surface);color:var(--ink);padding:12px;cursor:pointer;text-align:left;font:inherit}
+.way svg{width:64px;height:40px}
+.way b{font-weight:600}
+.way small{color:var(--muted);font-size:.82rem;line-height:1.3}
+.way .off{color:var(--accent);font-weight:600}
 .screenhead{display:flex;align-items:center;gap:12px}
-.back{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);display:grid;place-items:center;cursor:pointer;flex:none}
+.back{width:42px;height:42px;border-radius:50%;border:0;background:var(--chip);color:var(--ink);display:grid;place-items:center;cursor:pointer;flex:none}
 .back svg{width:22px;height:22px}
-.planbox{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:6px 14px}
-.planbox select,.planbox input{background:transparent;border:0;font-weight:700;padding:6px 0;font-size:1rem}
+.planbox{background:var(--chip);border-radius:14px;padding:4px 14px}
+.planbox select,.planbox input{background:transparent;border:0;font-weight:600;padding:8px 0;font-size:1rem}
 .planbox input::placeholder{color:var(--muted)}
-.places{border:1px solid var(--line);border-radius:20px;overflow:hidden;background:var(--surface)}
-.prow{display:grid;grid-template-columns:40px 1fr 20px;gap:14px;align-items:center;padding:13px 16px;width:100%;border:0;background:none;color:var(--ink);text-align:left;cursor:pointer;font:inherit}
-.prow + .prow{border-top:1px solid var(--line)}
-.prow .ic{width:40px;height:40px;border-radius:12px;background:var(--card);display:grid;place-items:center;color:var(--accent)}
-.prow .ic svg{width:20px;height:20px}
-.prow b{display:block}
-.prow small{display:block;color:var(--muted);font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.prow > span{min-width:0}
-.prow .chev{color:var(--muted);font-size:1.3rem}
-.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.svc{border-radius:18px;background:var(--card);color:var(--ink);display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px;cursor:pointer;text-align:left;font:inherit;position:relative;border:1px solid var(--line)}
-.svc svg{width:72px;height:46px}
+.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.svc{border-radius:14px;background:var(--surface);color:var(--ink);display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px;cursor:pointer;text-align:left;font:inherit;border:0}
+.svc svg{width:64px;height:40px}
 .svc small{color:var(--muted);font-size:.85rem}
-.svc .tag{position:absolute;top:12px;right:12px}
+.svc .off{color:var(--accent);font-weight:600}
 .strike{text-decoration:line-through;color:var(--muted);font-size:.8rem;display:block;text-align:right}
-.pinstub{display:flex;gap:8px}
-.pinstub span{width:46px;height:56px;border-radius:12px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:600 1.6rem var(--mono)}
-.restime{font:800 1.6rem/1 var(--display);letter-spacing:-.02em}
+.pinstub{display:flex;gap:6px}
+.pinstub span{width:42px;height:50px;border-radius:10px;background:var(--chip);color:var(--ink);display:grid;place-items:center;font:600 1.45rem var(--mono)}
