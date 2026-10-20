@@ -1,0 +1,586 @@
+<!doctype html><html lang="en-GB" class="x"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Safar X</title><meta name="description" content="The Safar driver app: go online, accept rides and track your earnings.">
+<meta name="theme-color" content="#0a0c10"><link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Safar X">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;-webkit-tap-highlight-color:transparent}img{max-width:100%}[hidden]{display:none!important}
+/* Layout: one phone-width column. Safar Rides follows the phone's light/dark setting; Safar X is always dark for night driving. */
+:root{
+  --bg:#eef0f5; --surface:#ffffff; --ink:#10131c; --muted:#5c6273; --line:#dadde6; --chip:#e4e7ef;
+  --accent:#2347e0; --accent-ink:#ffffff; --accent-soft:#dde4ff; --amber:#d98f00; --amber-soft:#fdeccb;
+  --danger:#c2362b; --danger-soft:#f8dcd9; --ok:#17845a; --ok-soft:#d6efe3;
+  --road:#ffffff; --ground:#e2e5ee; --park:#cde5d4; --water:#c9dcf1; --car:#10131c;
+  --display:"Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0c0f17; --surface:#151a26; --ink:#e8ebf3; --muted:#98a0b3; --line:#262c3b; --chip:#1d2331;
+  --accent:#7b95ff; --accent-ink:#0a0f22; --accent-soft:#1f2a52; --amber:#f4b13a; --amber-soft:#3a2c10;
+  --danger:#ea6a5e; --danger-soft:#3d1c19; --ok:#4cc58e; --ok-soft:#163626;
+  --road:#2a3142; --ground:#171c28; --park:#1b3326; --water:#17263a; --car:#e8ebf3; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0c0f17; --surface:#151a26; --ink:#e8ebf3; --muted:#98a0b3; --line:#262c3b; --chip:#1d2331;
+  --accent:#7b95ff; --accent-ink:#0a0f22; --accent-soft:#1f2a52; --amber:#f4b13a; --amber-soft:#3a2c10;
+  --danger:#ea6a5e; --danger-soft:#3d1c19; --ok:#4cc58e; --ok-soft:#163626;
+  --road:#2a3142; --ground:#171c28; --park:#1b3326; --water:#17263a; --car:#e8ebf3; color-scheme:dark }
+html:root.x.x{
+  --bg:#0a0c10; --surface:#14171f; --ink:#f1f3f7; --muted:#99a1b2; --line:#252a36; --chip:#1c202b;
+  --accent:#f5b301; --accent-ink:#161105; --accent-soft:#3b2e09; --amber:#f5b301; --amber-soft:#3b2e09;
+  --danger:#ef6b5f; --danger-soft:#3d1c19; --ok:#4cc58e; --ok-soft:#14321f;
+  --road:#252b39; --ground:#11141b; --park:#15271d; --water:#132133; --car:#f1f3f7; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+h1,h2,h3{font-family:var(--display);line-height:1.1;margin:0;text-wrap:balance}
+h1{font-size:1.7rem;font-weight:800;font-stretch:118%}
+h2{font-size:1.15rem;font-weight:700;font-stretch:112%}
+h3{font-size:1rem;font-weight:700;font-stretch:105%}
+p{margin:0}
+a{color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.84rem}
+.label{font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.top-in{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;align-items:center;gap:10px}
+.top-in b{font:800 1.25rem var(--display);font-stretch:122%}
+.top-in svg{width:30px;height:30px;flex:none}
+.conn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font:600 .72rem var(--mono);padding:4px 9px;border-radius:99px;background:var(--chip);color:var(--ink);white-space:nowrap}
+.conn i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.conn.live i{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 48px;display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.stack{display:flex;flex-direction:column;gap:12px;min-width:0}
+.stack.tight{gap:5px}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sheet.hot{border:2px solid var(--accent)}
+
+.map{width:100%;height:auto;display:block;border-radius:18px;border:1px solid var(--line);background:var(--ground)}
+.map .lbl{font:600 8.5px var(--body);fill:var(--muted);paint-order:stroke;stroke:var(--ground);stroke-width:3px;stroke-linejoin:round}
+.map .lbl.hot{fill:var(--ink);font-size:9.5px;font-weight:700}
+
+.btn{appearance:none;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);font:700 .95rem var(--body);padding:13px 16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+.btn:hover{filter:brightness(1.07)}
+.btn.ink{background:var(--ink);color:var(--bg)}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.line{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.danger{background:var(--danger-soft);color:var(--danger)}
+.btn.sm{padding:8px 12px;font-size:.85rem;border-radius:9px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+.seg{display:inline-flex;background:var(--chip);border-radius:11px;padding:3px;gap:2px}
+.seg button{border:0;background:none;font:700 .86rem var(--body);color:var(--muted);padding:7px 12px;border-radius:9px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .1)}
+
+input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;min-width:0}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field > span{font-size:.8rem;font-weight:700;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+.checks{display:flex;flex-direction:column;gap:8px}
+.checks label{display:flex;gap:10px;align-items:center;font-size:.92rem;cursor:pointer}
+.checks input{width:20px;height:20px;flex:none;accent-color:var(--accent)}
+
+.route{display:grid;grid-template-columns:22px 1fr auto;gap:8px 10px;align-items:center}
+.route .dot{width:12px;height:12px;border-radius:50%;background:var(--accent);justify-self:center}
+.route .sq{width:12px;height:12px;background:var(--ink);justify-self:center}
+.route .rail{width:2px;height:14px;background:var(--line);justify-self:center}
+.route select{font-weight:600}
+.swap{grid-row:1/4;grid-column:3;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;font-size:1.1rem}
+
+.rides{display:flex;flex-direction:column;gap:8px}
+.ride{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:14px;border:2px solid var(--line);background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.ride[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.ride svg{width:52px;height:30px}
+.ride .fare{font:600 1rem var(--mono);text-align:right}
+.ride > div{min-width:0}
+
+.plate{font:600 .88rem var(--mono);letter-spacing:.08em;background:#f6cf1a;color:#111;padding:2px 8px;border-radius:4px;border:1.5px solid #111;white-space:nowrap}
+.drv{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center}
+.drv > div{min-width:0}
+.avatar{width:52px;height:52px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font:800 1.15rem var(--display);font-stretch:120%}
+.pin{display:flex;gap:8px}
+.pin span{width:44px;height:50px;border-radius:10px;background:var(--chip);display:grid;place-items:center;font:600 1.35rem var(--mono)}
+.pininput{font:600 1.6rem var(--mono);letter-spacing:.5em;text-align:center;padding:12px}
+.status{font:800 1.3rem var(--display);font-stretch:115%}
+.pulse{width:64px;height:64px;border-radius:50%;background:var(--accent-soft);display:grid;place-items:center;margin:6px auto;position:relative}
+.pulse::before,.pulse::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);animation:ring 1.8s ease-out infinite}
+.pulse::after{animation-delay:.9s}
+.pulse i{width:18px;height:18px;border-radius:50%;background:var(--accent)}
+@keyframes ring{from{transform:scale(1);opacity:.8}to{transform:scale(2.1);opacity:0}}
+.prog{height:6px;border-radius:99px;background:var(--chip);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);transition:width .25s linear}
+.sumrow{display:flex;justify-content:space-between;gap:12px;font-variant-numeric:tabular-nums}
+.sumrow.total{font-weight:800;font-size:1.1rem;padding-top:8px;border-top:1px dashed var(--line)}
+.stars{display:flex;gap:4px;justify-content:center}
+.stars button{border:0;background:none;font-size:2.1rem;line-height:1;cursor:pointer;color:var(--line);padding:2px}
+.stars button.on{color:var(--amber)}
+.tips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tips button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:9px 0;font:600 .9rem var(--mono);cursor:pointer}
+.tips button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.err{color:var(--danger);font-size:.85rem;font-weight:700}
+.note{display:flex;gap:10px;align-items:flex-start;background:var(--chip);border-radius:12px;padding:10px 12px;font-size:.85rem}
+.note.amber{background:var(--amber-soft)}
+.empty{padding:20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px;font-size:.9rem}
+.count{width:62px;height:62px;border-radius:50%;border:3px solid var(--accent);display:grid;place-items:center;font:600 1.4rem var(--mono);color:var(--accent);flex:none}
+.pill{display:inline-flex;align-items:center;gap:6px;font:700 .74rem var(--body);padding:4px 10px;border-radius:99px;background:var(--accent-soft);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;border:0;background:none;font:700 .95rem var(--body);color:var(--ink);padding:0}
+.switch i{width:46px;height:28px;border-radius:99px;background:var(--line);position:relative;transition:background .2s;flex:none}
+.switch i::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / .3);transition:transform .2s}
+.switch[aria-checked="true"] i{background:var(--ok)}
+.switch[aria-checked="true"] i::after{transform:translateX(18px)}
+
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:3px}
+.kpi b{font:800 1.5rem/1.1 var(--display);font-stretch:112%;font-variant-numeric:tabular-nums}
+.list{display:flex;flex-direction:column}
+.list > div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:.88rem}
+.list > div:first-child{border-top:0}
+.list > div > span:first-child{min-width:0}
+.foot{text-align:center;font-size:.84rem;color:var(--muted)}
+.foot a{font-weight:700}
+
+.apps{display:grid;gap:14px}
+.appcard{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:center;padding:18px;border-radius:20px;text-decoration:none;color:inherit;border:1px solid var(--line);background:var(--surface)}
+.appcard svg{width:64px;height:64px}
+.appcard.drive{background:#0a0c10;color:#f1f3f7;border-color:#252a36}
+.appcard.drive .muted{color:#99a1b2}
+.appcard > div{min-width:0}
+.hero{display:flex;flex-direction:column;gap:10px;padding-block:18px 4px}
+.hero svg{width:56px;height:56px}
+.hero h1{font-size:2rem}
+.tel{display:grid;grid-template-columns:auto 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.tel span{display:grid;place-items:center;padding:0 12px;background:var(--chip);font:600 .95rem var(--mono);border-right:1px solid var(--line)}
+.tel input{border:0;border-radius:0}
+.linkbtn{border:0;background:none;color:var(--accent);font:700 .92rem var(--body);cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+.center{text-align:center}
+
+#toasts{position:fixed;z-index:40;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(420px,calc(100% - 32px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--ink);color:var(--bg);border-radius:14px;padding:11px 14px;font-size:.88rem;display:flex;gap:10px;box-shadow:0 10px 30px rgb(0 0 0 / .25);animation:pop .25s ease-out}
+.toast .who{font:600 .68rem var(--mono);text-transform:uppercase;color:var(--amber);flex:none;padding-top:2px}
+@keyframes pop{from{transform:translateY(8px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.tel.pw{grid-template-columns:1fr auto}
+.tel.pw .linkbtn{padding:0 14px;text-decoration:none}
+.avatar.sm{width:36px;height:36px;font-size:.8rem;margin-left:auto;border:0;cursor:pointer}
+</style></head>
+<body><div id="app"></div><div id="toasts" aria-live="polite"></div>
+<script>/* ===== Safar shared core: used by both Safar Rides and Safar X ===== */
+const SB_URL = 'https://uprrsqqnnvpjevoujxmk.supabase.co';
+const SB_KEY = 'sb_publishable_eMwkhTp9QRaT2s6YM03kHg_ZSG4u3uN';
+const PX_PER_MILE = 40 / 0.7, FEE = 0.25, SIM_AFTER = 22000, REQ_WINDOW = 20000, POLL_MS = 2500;
+const FARE = { base: 2.5, mile: 1.25, min: 0.2, minimum: 5 };
+const PLACES = {
+  home: { name: '14 Elm Street', x: 280, y: 200 }, station: { name: 'Leeds Station', x: 160, y: 120 },
+  trinity: { name: 'Trinity Leeds', x: 200, y: 80 }, uni: { name: 'University of Leeds', x: 120, y: 40 },
+  headingley: { name: 'Headingley Stadium', x: 40, y: 40 }, kirkstall: { name: 'Kirkstall Abbey', x: 40, y: 160 },
+  roundhay: { name: 'Roundhay Park', x: 320, y: 40 }, whiterose: { name: 'White Rose Centre', x: 120, y: 240 }
+};
+const TYPES = {
+  go: { name: 'Safar Go', seats: 4, mult: 1, blurb: 'Everyday rides' },
+  green: { name: 'Safar Green', seats: 4, mult: 1.1, blurb: 'Fully electric cars' },
+  comfort: { name: 'Comfort', seats: 4, mult: 1.35, blurb: 'Newer cars, more legroom' },
+  xl: { name: 'Safar XL', seats: 6, mult: 1.65, blurb: 'Groups and luggage' }
+};
+const SIM = [
+  { name: 'Ayesha Malik', car: 'Toyota Prius', colour: 'White', plate: 'YK70 TFR', rating: 4.95, types: ['go'], pos: { x: 200, y: 160 } },
+  { name: 'Tom Brennan', car: 'Škoda Octavia', colour: 'Grey', plate: 'LS19 KJD', rating: 4.88, types: ['go', 'comfort'], pos: { x: 80, y: 80 } },
+  { name: 'Imran Shah', car: 'Kia Niro EV', colour: 'Blue', plate: 'YB22 NWA', rating: 4.91, types: ['go', 'green'], pos: { x: 240, y: 40 } },
+  { name: 'Grace Okafor', car: 'Ford Galaxy', colour: 'Black', plate: 'LN68 XLG', rating: 4.97, types: ['go', 'xl'], pos: { x: 40, y: 200 } }
+];
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => '£' + (Math.round(n * 100) / 100).toFixed(2);
+const first = n => String(n || '').split(' ')[0];
+const initials = n => String(n || '?').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { if (v === null || v === undefined) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const normPhone = v => { let d = String(v || '').replace(/\D/g, ''); if (d.startsWith('44')) d = d.slice(2); if (d.startsWith('0')) d = d.slice(1); return /^7\d{9}$/.test(d) ? d : null; };
+const showPhone = d => '+44 ' + d.slice(0, 4) + ' ' + d.slice(4);
+
+/* ---------- server ---------- */
+class ApiError extends Error { constructor(msg, kind) { super(msg); this.kind = kind; } }
+async function rpc(fn, args) {
+  let r;
+  try {
+    r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(args || {}) });
+  } catch (e) { throw new ApiError('No connection. Check your internet and try again.', 'network'); }
+  const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) {}
+  if (!r.ok) {
+    if (j && j.hint === 'session') throw new ApiError(j.message, 'session');
+    if (j && (j.code === 'PGRST202' || j.code === '42883' || j.code === '42P01')) throw new ApiError('Safar is still being set up. Try again in a minute.', 'setup');
+    if (j && j.code === 'P0001' && j.message) throw new ApiError(j.message, 'rule');
+    throw new ApiError('Something went wrong on our side. Try again in a moment.', 'error');
+  }
+  return j;
+}
+
+/* ---------- geometry & pricing ---------- */
+const path = (a, b) => [a, { x: b.x, y: a.y }, b];
+function len(p) { let d = 0; for (let i = 1; i < p.length; i++) d += Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y); return d; }
+function pointAt(p, t) {
+  let goal = Math.min(1, Math.max(0, t)) * len(p);
+  for (let i = 1; i < p.length; i++) {
+    const d = Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y);
+    if (goal <= d || i === p.length - 1) { const f = d ? Math.min(1, goal / d) : 1; return { x: p[i - 1].x + (p[i].x - p[i - 1].x) * f, y: p[i - 1].y + (p[i].y - p[i - 1].y) * f, a: d ? Math.atan2(p[i].y - p[i - 1].y, p[i].x - p[i - 1].x) * 180 / Math.PI : 0 }; }
+    goal -= d;
+  }
+  const e = p[p.length - 1]; return { x: e.x, y: e.y, a: 0 };
+}
+function fareFor(from, to, type) {
+  const miles = len(path(PLACES[from], PLACES[to])) / PX_PER_MILE, mins = Math.round(miles * 3.2 + 3), m = TYPES[type].mult;
+  const parts = { base: FARE.base * m, dist: FARE.mile * miles * m, time: FARE.min * mins * m };
+  return { miles, mins, parts, fare: Math.round(Math.max(parts.base + parts.dist + parts.time, FARE.minimum * m) * 100) / 100 };
+}
+const minsBetween = (a, b) => Math.max(1, Math.round(len(path(a, b)) / PX_PER_MILE * 3 + 1));
+const nearestSim = (pt, type) => SIM.filter(d => d.types.includes(type)).sort((a, b) => len(path(a.pos, pt)) - len(path(b.pos, pt)))[0];
+
+/* ---------- trip phases, derived from timestamps so both phones agree ---------- */
+function phase(t, now = Date.now()) {
+  if (t.status === 'accepted') return now < t.acceptedAt + t.pickupDur ? 'arriving' : 'arrived';
+  if (t.status === 'ontrip') return now < t.startedAt + t.tripDur ? 'ontrip' : 'dropoff';
+  return t.status;
+}
+function progress(t, now = Date.now()) {
+  const ph = phase(t, now);
+  if (ph === 'arriving') return Math.min(1, (now - t.acceptedAt) / t.pickupDur);
+  if (ph === 'ontrip') return Math.min(1, (now - t.startedAt) / t.tripDur);
+  return ph === 'searching' ? 0 : 1;
+}
+function carPos(t, now = Date.now()) {
+  const ph = phase(t, now), A = PLACES[t.from], B = PLACES[t.to];
+  if (ph === 'arriving') return pointAt(path(t.start, A), progress(t, now));
+  if (ph === 'arrived') return { ...A, a: 0 };
+  if (ph === 'ontrip') return pointAt(path(A, B), progress(t, now));
+  return { ...B, a: 0 };
+}
+function etaText(t) {
+  const ph = phase(t), p = progress(t);
+  if (ph === 'arriving') return `Arriving in ${Math.max(1, Math.ceil((1 - p) * t.pickupMins))} min`;
+  if (ph === 'arrived') return 'Waiting at pickup';
+  if (ph === 'ontrip') return `${Math.max(1, Math.ceil((1 - p) * t.mins))} min to ${PLACES[t.to].name}`;
+  if (ph === 'dropoff') return `Arrived at ${PLACES[t.to].name}`;
+  return '';
+}
+
+/* ---------- UI pieces ---------- */
+function toast(who, text) {
+  const box = document.getElementById('toasts'), el = document.createElement('div');
+  el.className = 'toast'; el.innerHTML = `<span class="who">${esc(who)}</span><span>${esc(text)}</span>`;
+  box.appendChild(el); while (box.children.length > 3) box.firstChild.remove();
+  setTimeout(() => el.remove(), 4500);
+}
+const LOGO_R = `<svg viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="14" fill="#2347e0"/><path d="M8 19 C 11 9, 19 21, 22 11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="22" cy="11" r="2.6" fill="#f5b301"/></svg>`;
+const LOGO_X = `<svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="8" fill="#f5b301"/><path d="M9 9 L21 21 M21 9 L9 21" stroke="#161105" stroke-width="3.4" stroke-linecap="round"/></svg>`;
+const carIcon = type => { const c = type === 'green' ? 'var(--ok)' : type === 'comfort' ? 'var(--muted)' : 'var(--car)'; const w = type === 'xl' ? 48 : 44; return `<svg viewBox="0 0 52 30" aria-hidden="true"><rect x="2" y="12" width="${w}" height="11" rx="4" fill="${c}"/><path d="M10 12 L16 5 H${type === 'xl' ? 40 : 32} L${type === 'xl' ? 46 : 40} 12 Z" fill="${c}" opacity=".75"/><circle cx="12" cy="23" r="4" fill="var(--surface)" stroke="var(--car)" stroke-width="2"/><circle cx="${w - 8}" cy="23" r="4" fill="var(--surface)" stroke="var(--car)" stroke-width="2"/></svg>`; };
+function mapSVG(o) {
+  const A = o.from && PLACES[o.from], B = o.to && PLACES[o.to];
+  let streets = '';
+  for (let x = 0; x <= 360; x += 40) streets += `<line x1="${x}" y1="-10" x2="${x}" y2="270"/>`;
+  for (let y = 0; y <= 260; y += 40) streets += `<line x1="-10" y1="${y}" x2="370" y2="${y}"/>`;
+  const labels = Object.entries(PLACES).map(([k, p]) => {
+    const hot = k === o.from || k === o.to, anchor = p.x > 300 ? 'end' : p.x < 60 ? 'start' : 'middle';
+    return `${hot ? '' : `<circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--muted)"/>`}<text class="lbl ${hot ? 'hot' : ''}" x="${p.x}" y="${p.y - 9}" text-anchor="${anchor}">${esc(p.name)}</text>`;
+  }).join('');
+  const car = (c, mine) => `<g ${c.id ? `data-car="${c.id}"` : ''} transform="translate(${c.x.toFixed(1)} ${c.y.toFixed(1)}) rotate(${(c.a || 0).toFixed(0)})">${mine ? '<circle r="15" fill="var(--accent)" opacity=".2"/>' : ''}<rect x="-8" y="-5" width="16" height="10" rx="3.5" fill="${mine ? 'var(--accent)' : 'var(--car)'}" stroke="var(--surface)" stroke-width="1.5"/><rect x="0" y="-3.6" width="4.5" height="7.2" rx="1.4" fill="var(--surface)" opacity=".75"/></g>`;
+  return `<svg class="map" viewBox="-10 -10 380 280" role="img" aria-label="Map of Leeds${A && B ? ' with the route from ' + esc(A.name) + ' to ' + esc(B.name) : ''}">
+    <rect x="-10" y="-10" width="380" height="280" fill="var(--ground)"/>
+    <rect x="286" y="6" width="74" height="50" rx="10" fill="var(--park)"/><rect x="-4" y="124" width="58" height="52" rx="10" fill="var(--park)"/>
+    <path d="M-10 100 C 60 90, 110 112, 170 100 S 290 92, 370 104" fill="none" stroke="var(--water)" stroke-width="9" stroke-linecap="round"/>
+    <g stroke="var(--road)" stroke-width="8" stroke-linecap="round">${streets}</g>
+    ${o.approach && A ? `<polyline points="${path(o.approach, A).map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-dasharray="1 7" stroke-linecap="round"/>` : ''}
+    ${A && B ? `<polyline points="${path(A, B).map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--ink)" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+    ${labels}
+    ${A ? `<g transform="translate(${A.x} ${A.y})"><circle r="9" fill="var(--accent)"/><circle r="3.5" fill="var(--surface)"/></g>` : ''}
+    ${B ? `<g transform="translate(${B.x} ${B.y})"><rect x="-8" y="-8" width="16" height="16" fill="var(--ink)"/><rect x="-3" y="-3" width="6" height="6" fill="var(--surface)"/></g>` : ''}
+    ${(o.cars || []).map(c => car(c, false)).join('')}${o.mine ? car(o.mine, true) : ''}
+  </svg>`;
+}
+
+/* ---------- account: log in and sign up (shared by both apps) ---------- */
+const Account = {
+  key: '', app: '', me: null, token: null,
+  init(app) { this.app = app; this.key = 'safar-' + app + '-session'; this.token = LS.get(this.key, null); this.me = LS.get(this.key + '-me', null); },
+  set(res) { this.token = res.token; this.me = res.account; LS.set(this.key, this.token); LS.set(this.key + '-me', this.me); },
+  setMe(me) { this.me = me; LS.set(this.key + '-me', me); },
+  clear() { this.token = null; this.me = null; LS.set(this.key, null); LS.set(this.key + '-me', null); },
+  async refresh() {
+    if (!this.token) return;
+    try { this.setMe(await rpc('safar_me', { p_token: this.token, p_app: this.app })); }
+    catch (e) { if (e.kind === 'session') { this.clear(); render(true); } }
+  }
+};
+const authUI = { step: null, draft: { name: '', email: '', phone: '', password: '', terms: false }, err: '', busy: false, show: false };
+function authView(o) {
+  const s = authUI, d = s.draft;
+  if (!s.step) s.step = LS.get('safar-' + o.app + '-known', false) ? 'login' : 'signup';
+  const hero = `<section class="hero">${o.logo}<h1>${o.name}</h1><p class="muted">${o.tagline}</p></section>`;
+  const err = s.err ? `<p class="err" role="alert">${esc(s.err)}</p>` : '';
+  const phone = `<label class="field"><span>Mobile number</span><span class="tel"><span>+44</span><input id="au-phone" data-auth="phone" type="tel" inputmode="tel" autocomplete="tel-national" value="${esc(d.phone)}" placeholder="07700 900123"></span></label>`;
+  const pass = (auto) => `<label class="field"><span>Password</span><span class="tel pw"><input id="au-password" data-auth="password" type="${s.show ? 'text' : 'password'}" autocomplete="${auto}" value="${esc(d.password)}" placeholder="${auto === 'new-password' ? 'At least 8 characters' : 'Your password'}"><button type="button" class="linkbtn" data-act="togglePw">${s.show ? 'Hide' : 'Show'}</button></span></label>`;
+  const busy = s.busy ? 'disabled' : '';
+  let sheet;
+  if (s.step === 'login') {
+    sheet = `<section class="sheet"><div class="stack tight"><h2>Log in</h2><p class="small muted">Use the mobile number and password for your ${o.name} account.</p></div>
+      ${phone}${pass('current-password')}${err}
+      <button class="btn block" data-act="login" ${busy}>${s.busy ? 'Logging in…' : 'Log in'}</button>
+      <p class="small center">New to ${o.name}? <button class="linkbtn" data-act="authStep" data-step="signup">Create an account</button></p></section>`;
+  } else {
+    sheet = `<section class="sheet"><div class="stack tight">${o.steps ? '<span class="label">Step 1 of 2</span>' : ''}<h2>${o.signupTitle}</h2><p class="small muted">${o.signupNote}</p></div>
+      <label class="field"><span>Full name</span><input id="au-name" data-auth="name" autocomplete="name" value="${esc(d.name)}" placeholder="${o.namePh}"></label>
+      <label class="field"><span>Email</span><input id="au-email" data-auth="email" type="email" autocomplete="email" value="${esc(d.email)}" placeholder="you@example.com"></label>
+      ${phone}${pass('new-password')}
+      <div class="checks"><label><input type="checkbox" id="au-terms" data-auth="terms" ${d.terms ? 'checked' : ''}>${o.termsText}</label></div>
+      ${err}
+      <button class="btn block" data-act="signup" ${busy}>${s.busy ? 'Creating your account…' : 'Create account'}</button>
+      <p class="small center">Already have an account? <button class="linkbtn" data-act="authStep" data-step="login">Log in</button></p></section>`;
+  }
+  return `<main class="wrap">${hero}${sheet}<p class="foot">${o.other}</p></main>`;
+}
+const AuthActions = {
+  authStep: d => { authUI.step = d.step; authUI.err = ''; render(true); },
+  togglePw: () => { authUI.show = !authUI.show; render(true); },
+  login: async () => {
+    const d = authUI.draft, ph = normPhone(d.phone);
+    authUI.err = !ph ? 'Enter a UK mobile number, for example 07700 900123.' : !d.password ? 'Enter your password.' : '';
+    if (authUI.err) { render(true); return; }
+    authUI.busy = true; render(true);
+    try { Account.set(await rpc('safar_login', { p_app: Account.app, p_phone: ph, p_password: d.password })); authDone(false); }
+    catch (e) { authUI.err = e.message; }
+    authUI.busy = false; render(true);
+  },
+  signup: async () => {
+    const d = authUI.draft, ph = normPhone(d.phone);
+    authUI.err = d.name.trim().length < 2 ? 'Enter your full name.' : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(d.email.trim()) ? 'Enter a valid email address, for example you@example.com.' : !ph ? 'Enter a UK mobile number, for example 07700 900123.' : d.password.length < 8 ? 'Use a password of at least 8 characters.' : !d.terms ? 'Tick the box to agree to the terms and privacy policy.' : '';
+    if (authUI.err) { render(true); return; }
+    authUI.busy = true; render(true);
+    try { Account.set(await rpc('safar_signup', { p_app: Account.app, p_name: d.name.trim(), p_email: d.email.trim(), p_phone: ph, p_password: d.password })); authDone(true); }
+    catch (e) { authUI.err = e.message; }
+    authUI.busy = false; render(true);
+  },
+  logout: async () => {
+    const t = Account.token; Account.clear(); authUI.step = 'login'; authUI.draft.password = ''; render(true); window.scrollTo(0, 0);
+    if (t) rpc('safar_logout', { p_token: t }).catch(() => {});
+  }
+};
+function authDone(isNew) {
+  LS.set('safar-' + Account.app + '-known', true);
+  authUI.err = ''; authUI.draft = { name: '', email: '', phone: '', password: '', terms: false }; authUI.show = false;
+  toast(APP_NAME, isNew ? `Welcome to ${APP_NAME}, ${first(Account.me.name)}.` : `Welcome back, ${first(Account.me.name)}.`);
+  onLoggedIn();
+}
+
+/* ---------- shared wiring ---------- */
+let pendingRender = false;
+function render(force) {
+  const a = document.activeElement;
+  if (!force && a && a.closest && a.closest('#app') && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) { pendingRender = true; return; }
+  pendingRender = false;
+  document.getElementById('app').innerHTML = view();
+  lastKey = viewKey();
+}
+let lastKey = '';
+document.addEventListener('focusout', () => setTimeout(() => { if (pendingRender) render(); }, 0));
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
+  e.preventDefault(); const fn = AuthActions[el.dataset.act] || ACTIONS[el.dataset.act]; if (fn) fn(el.dataset);
+});
+document.addEventListener('input', e => { const t = e.target; if (t.dataset && t.dataset.auth) authUI.draft[t.dataset.auth] = t.type === 'checkbox' ? t.checked : t.value; });
+document.addEventListener('change', e => { const t = e.target; if (t.dataset && t.dataset.auth === 'terms') authUI.draft.terms = t.checked; });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.id) return;
+  const map = { 'au-phone': authUI.step === 'login' ? 'login' : 'signup', 'au-password': authUI.step === 'login' ? 'login' : 'signup', pin: 'start' };
+  const act = map[e.target.id]; if (act) { const b = document.querySelector(`[data-act="${act}"]`); if (b) b.click(); }
+});
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+
+/* ===== Safar X: the driver app ===== */
+const APP_NAME = 'Safar X';
+Account.init('driver');
+const prefs = Object.assign({ online: true, pos: { x: 160, y: 200 } }, LS.get('safar-driver-prefs', {}));
+const savePrefs = () => LS.set('safar-driver-prefs', prefs);
+const ui = { declined: new Set(), editCar: false, formErr: '', formDraft: null, pinErr: '', busy: '', loaded: false };
+let feed = { requests: [], trips: [] };
+const writing = new Set();
+
+const vehicle = () => Account.me && Account.me.vehicle;
+const myJob = () => feed.trips.find(t => t.status === 'accepted' || t.status === 'ontrip');
+function openRequests() {
+  const v = vehicle(), now = Date.now();
+  if (!v || !prefs.online || myJob()) return [];
+  return feed.requests.filter(t => t.status === 'searching' && v.types.includes(t.type) && now - t.requestAt < REQ_WINDOW + 5000 && !ui.declined.has(t.id));
+}
+
+/* ---------- server sync ---------- */
+async function poll() {
+  if (!Account.token || document.hidden || !vehicle()) return;
+  try {
+    const next = await rpc('safar_driver_feed', { p_token: Account.token, p_online: !!prefs.online });
+    const oldTrips = Object.fromEntries(feed.trips.map(t => [t.id, t])), oldReq = new Set(feed.requests.map(t => t.id));
+    next.trips = next.trips.map(t => writing.has(t.id) && oldTrips[t.id] ? oldTrips[t.id] : t);
+    feed = next; ui.loaded = true;
+    notifyChanges(oldTrips, oldReq); render();
+  } catch (e) { if (e.kind === 'session') { Account.clear(); toast(APP_NAME, e.message); render(true); } }
+}
+async function patchTrip(id, patch) {
+  const t = feed.trips.find(x => x.id === id); if (!t) return;
+  writing.add(id); Object.assign(t, patch); render();
+  try { await rpc('safar_update_trip', { p_token: Account.token, p_app: 'driver', p_id: id, p_patch: patch }); }
+  catch (e) { toast(APP_NAME, e.message); }
+  writing.delete(id); poll();
+}
+function notifyChanges(oldTrips, oldReq) {
+  const v = vehicle();
+  for (const t of openRequests()) if (!oldReq.has(t.id)) toast(APP_NAME, `New ${TYPES[t.type].name} request from ${PLACES[t.from].name}.`);
+  for (const t of feed.trips) {
+    const o = oldTrips[t.id]; if (!o) continue;
+    if (o.status !== 'cancelled' && t.status === 'cancelled') toast(APP_NAME, 'The rider cancelled this trip.');
+    if (!o.tip && t.tip) toast(APP_NAME, `You got a ${money(t.tip)} tip from ${t.riderName || 'your rider'}.`);
+    if (!o.rating && t.rating) toast(APP_NAME, `${t.riderName || 'A rider'} gave you ${t.rating} star${t.rating > 1 ? 's' : ''}.`);
+  }
+}
+
+/* ---------- views ---------- */
+function view() {
+  if (!Account.token) return authView({ app: 'driver', name: APP_NAME, logo: LOGO_X, tagline: 'Drive around Leeds and earn on your own schedule.', steps: true, signupTitle: 'Create your driver account', signupNote: 'Next you add your car. Riders see your first name and number plate.', namePh: 'Bilal Ahmed', termsText: 'I agree to the Safar X terms and privacy policy, and confirm I am 21 or over', other: 'Need a ride? Get the <b>Safar Rides</b> app.' });
+  const me = Account.me || { name: '' }, head = `<header class="top"><div class="top-in">${LOGO_X}<b>Safar X</b></div></header>`;
+  if (!vehicle() || ui.editCar) return head + `<main class="wrap">${carForm()}${vehicle() ? '' : '<p class="foot"><button class="linkbtn" data-act="logout">Log out</button></p>'}</main>`;
+  const v = vehicle(), job = myJob(), reqs = openRequests();
+  const done = feed.trips.filter(t => t.status === 'completed').sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+  const earned = done.reduce((a, t) => a + t.fare * (1 - FEE) + (t.tip || 0), 0), rated = done.filter(t => t.rating);
+  const bar = `<div class="drv" style="grid-template-columns:48px 1fr auto"><div class="avatar" style="width:48px;height:48px;font-size:1rem">${esc(initials(me.name))}</div>
+    <div class="stack tight"><h3>${esc(me.name)}</h3><span class="small muted"><span class="plate" style="font-size:.74rem">${esc(v.plate)}</span> ${esc(v.colour)} ${esc(v.car)}</span></div>
+    <button class="switch" role="switch" aria-checked="${prefs.online}" data-act="online" ${job ? 'disabled' : ''}><span>${prefs.online ? 'Online' : 'Offline'}</span><i></i></button></div>`;
+  let main;
+  if (!ui.loaded) main = '<div class="empty">Connecting to Safar…</div>';
+  else if (job) main = jobView(job);
+  else if (reqs.length) {
+    const t = reqs[0], A = PLACES[t.from], left = Math.max(0, Math.ceil((t.requestAt + REQ_WINDOW - Date.now()) / 1000));
+    main = mapSVG({ from: t.from, to: t.to, approach: prefs.pos, mine: { ...prefs.pos, a: 0 } }) + `<section class="sheet hot">
+      <div class="spread"><div class="stack tight"><span class="label">New ${esc(TYPES[t.type].name)} request</span><h1>${money(t.fare * (1 - FEE))}</h1><span class="small muted">your earnings after the 25% Safar fee</span></div><div class="count" data-count="${t.id}">${left}</div></div>
+      <div class="route"><span class="dot"></span><span><b>${esc(A.name)}</b> <span class="small muted">· ${minsBetween(prefs.pos, A)} min away</span></span><span></span><span class="rail"></span><span></span><span></span><span class="sq"></span><span>${esc(PLACES[t.to].name)} <span class="small muted mono">· ${t.miles.toFixed(1)} mi · ${t.pay === 'cash' ? 'cash' : 'card'}</span></span></div>
+      <p class="small muted">Rider: ${esc(t.riderName || 'Rider')}</p>
+      <div class="row"><button class="btn line" data-act="decline" data-id="${t.id}" style="flex:1">Decline</button><button class="btn" data-act="accept" data-id="${t.id}" style="flex:2" ${ui.busy ? 'disabled' : ''}>${ui.busy === t.id ? 'Accepting…' : 'Accept'}</button></div></section>`;
+  } else main = mapSVG({ mine: { ...prefs.pos, a: 0 } }) + `<section class="sheet"><p class="status">${prefs.online ? 'Looking for riders…' : 'You are offline'}</p>
+      <p class="small muted">${prefs.online ? `Requests for ${v.types.map(k => TYPES[k].name).join(', ')} appear here. Keep this screen open.` : 'Go online to start getting ride requests.'}</p></section>`;
+  return head + `<main class="wrap">${bar}${main}
+    <div class="kpis"><div class="kpi"><span class="label">Earnings</span><b>${money(earned)}</b><span class="small muted">after fee, incl. tips</span></div><div class="kpi"><span class="label">Trips</span><b>${done.length}</b><span class="small muted">${rated.length ? '★ ' + (rated.reduce((a, t) => a + t.rating, 0) / rated.length).toFixed(2) + ' from riders' : 'no ratings yet'}</span></div></div>
+    ${done.length ? `<section class="sheet"><h2>Recent trips</h2><div class="list">${done.slice(0, 6).map(t => `<div><span>${esc(PLACES[t.from].name)} → ${esc(PLACES[t.to].name)}<br><span class="small muted">${esc(t.riderName || 'Rider')} · ${ago(t.completedAt || t.requestAt)}${t.rating ? ' · ★ ' + t.rating : ''}${t.tip ? ' · ' + money(t.tip) + ' tip' : ''}</span></span><span class="mono">${money(t.fare * (1 - FEE) + (t.tip || 0))}</span></div>`).join('')}</div></section>` : ''}
+    <div class="row"><button class="btn ghost sm" data-act="editCar">Edit car details</button><button class="btn ghost sm" data-act="logout" ${job ? 'disabled' : ''}>Log out</button></div></main>`;
+}
+function jobView(job) {
+  const ph = phase(job), A = PLACES[job.from], B = PLACES[job.to];
+  const map = mapSVG({ from: job.from, to: job.to, approach: ph === 'arriving' ? job.start : null, mine: { ...carPos(job), id: job.id } });
+  const rider = `<div class="spread"><div class="stack tight"><span class="label">Rider</span><h3>${esc(job.riderName || 'Rider')}</h3></div><span class="mono" style="font-weight:600">${money(job.fare * (1 - FEE))}</span></div>`;
+  if (ph === 'arriving') return map + `<section class="sheet"><div class="spread"><p class="status" data-eta="${job.id}">${etaText(job)}</p><span class="pill">To pickup</span></div>
+      <div class="prog"><i data-prog="${job.id}" style="width:${(progress(job) * 100).toFixed(1)}%"></i></div>${rider}
+      <p>Pick up at <b>${esc(A.name)}</b></p><button class="btn line sm" data-act="skipPickup" data-id="${job.id}">Test mode: arrive now</button></section>`;
+  if (ph === 'arrived') return map + `<section class="sheet hot"><p class="status">You're at ${esc(A.name)}</p>${rider}
+      <label class="field"><span>Ask the rider for their 4-digit PIN</span><input id="pin" class="pininput" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••"></label>
+      ${ui.pinErr ? `<p class="err" role="alert">${esc(ui.pinErr)}</p>` : '<p class="small muted">The rider sees the PIN in Safar Rides. The trip only starts when it matches.</p>'}
+      <button class="btn block" data-act="start" data-id="${job.id}" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Checking…' : 'Start trip'}</button></section>`;
+  if (ph === 'ontrip') return map + `<section class="sheet"><div class="spread"><p class="status" data-eta="${job.id}">${etaText(job)}</p><span class="pill">On trip</span></div>
+      <div class="prog"><i data-prog="${job.id}" style="width:${(progress(job) * 100).toFixed(1)}%"></i></div>${rider}
+      <p>Drop off at <b>${esc(B.name)}</b> · ${job.pay === 'cash' ? `collect <b class="mono">${money(job.fare)}</b> in cash` : 'paid by card'}</p>
+      <button class="btn line sm" data-act="skipTrip" data-id="${job.id}">Test mode: arrive now</button></section>`;
+  return map + `<section class="sheet hot"><p class="status">You've reached ${esc(B.name)}</p>${rider}
+      ${job.pay === 'cash' ? `<div class="note amber"><span>💷</span><span>Collect <b class="mono">${money(job.fare)}</b> in cash before the rider leaves.</span></div>` : ''}
+      <button class="btn block" data-act="complete" data-id="${job.id}">Complete trip</button></section>`;
+}
+function carForm() {
+  const p = vehicle(), v = ui.formDraft || p || { car: '', colour: '', plate: '', types: ['go'] };
+  return `<section class="sheet">
+    <div class="stack tight"><span class="label">${p ? 'Your car' : 'Step 2 of 2'}</span><h1>${p ? 'Edit car details' : 'Add your car, ' + esc(first(Account.me.name))}</h1>
+    <p class="small muted">Riders see your first name, car and number plate when you accept their ride.</p></div>
+    <div class="grid2">
+      <label class="field"><span>Number plate</span><input id="su-plate" class="mono" value="${esc(v.plate)}" placeholder="YK21 BLL" style="text-transform:uppercase"></label>
+      <label class="field"><span>Car make and model</span><input id="su-car" value="${esc(v.car)}" placeholder="Toyota Corolla Hybrid"></label>
+      <label class="field"><span>Colour</span><input id="su-colour" value="${esc(v.colour)}" placeholder="Silver"></label>
+    </div>
+    <div class="stack tight"><span class="label">Ride types you can take</span>
+      <div class="checks">${Object.entries(TYPES).map(([k, t]) => `<label><input type="checkbox" id="su-t-${k}" ${v.types.includes(k) ? 'checked' : ''}>${t.name} <span class="small muted">· ${t.blurb.toLowerCase()}</span></label>`).join('')}</div></div>
+    ${p ? '' : `<div class="stack tight"><span class="label">Before you drive</span><div class="checks">
+      ${['I hold a private hire driver licence', 'My car has hire and reward insurance', 'My car has a valid MOT'].map((l, i) => `<label><input type="checkbox" id="su-d${i + 1}" ${v.docs && v.docs[i] ? 'checked' : ''}>${l}</label>`).join('')}</div></div>`}
+    ${ui.formErr ? `<p class="err" role="alert">${esc(ui.formErr)}</p>` : ''}
+    <div class="row"><button class="btn" data-act="saveCar" style="flex:1" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Saving…' : p ? 'Save details' : 'Start driving'}</button>${p ? '<button class="btn ghost" data-act="cancelCar">Cancel</button>' : ''}</div>
+  </section>`;
+}
+function viewKey() { const j = Account.token && vehicle() && myJob(); return (Account.token ? 'in' : 'out') + (vehicle() ? 'v' : '') + (j ? j.id + phase(j) : 'req:' + openRequests().map(t => t.id).join(',')); }
+
+/* ---------- actions ---------- */
+const ACTIONS = {
+  online: () => { prefs.online = !prefs.online; savePrefs(); render(true); poll(); },
+  editCar: () => { ui.editCar = true; ui.formErr = ''; ui.formDraft = null; render(true); },
+  cancelCar: () => { ui.editCar = false; ui.formErr = ''; ui.formDraft = null; render(true); },
+  saveCar: async () => {
+    const g = id => (document.getElementById(id) || {}).value || '';
+    const p = { plate: g('su-plate').trim().toUpperCase(), car: g('su-car').trim(), colour: g('su-colour').trim(), types: Object.keys(TYPES).filter(k => document.getElementById('su-t-' + k).checked) };
+    const docs = ['su-d1', 'su-d2', 'su-d3'].map(id => !!(document.getElementById(id) || {}).checked);
+    ui.formErr = !p.car || !p.colour ? 'Fill in your car and its colour.' : !/^[A-Z0-9 ]{2,8}$/.test(p.plate) ? 'Enter a number plate, for example YK21 BLL.' : !p.types.length ? 'Choose at least one ride type.' : !vehicle() && !docs.every(Boolean) ? 'Tick all three boxes to confirm your licence, insurance and MOT.' : '';
+    ui.formDraft = Object.assign({}, p, { docs });
+    if (ui.formErr) { render(true); return; }
+    const first_ = !vehicle(); ui.busy = 'car'; render(true);
+    try { Account.setMe(await rpc('safar_set_vehicle', { p_token: Account.token, p_vehicle: p })); ui.editCar = false; ui.formDraft = null; if (first_) toast(APP_NAME, 'You are set up. Go online to get ride requests.'); poll(); }
+    catch (e) { ui.formErr = e.message; }
+    ui.busy = ''; render(true);
+  },
+  decline: d => { ui.declined.add(d.id); render(true); },
+  accept: async d => {
+    const t = feed.requests.find(x => x.id === d.id); if (!t || ui.busy) return;
+    const A = PLACES[t.from]; ui.busy = t.id; render(true);
+    try {
+      await rpc('safar_accept_trip', { p_token: Account.token, p_id: t.id, p_patch: { start: { x: prefs.pos.x, y: prefs.pos.y }, acceptedAt: Date.now(), pickupDur: Math.max(6000, len(path(prefs.pos, A)) / 40 * 1800), pickupMins: minsBetween(prefs.pos, A) } });
+      toast(APP_NAME, `Ride accepted. Head to ${A.name}.`);
+    } catch (e) { toast(APP_NAME, e.message); ui.declined.add(t.id); }
+    ui.busy = ''; await poll(); render(true);
+  },
+  skipPickup: d => { const t = feed.trips.find(x => x.id === d.id); patchTrip(d.id, { pickupDur: Math.max(0, Date.now() - t.acceptedAt) }); },
+  start: async d => {
+    const t = feed.trips.find(x => x.id === d.id), v = ((document.getElementById('pin') || {}).value || '').trim();
+    if (!/^\d{4}$/.test(v)) { ui.pinErr = 'Enter the 4-digit PIN from the rider.'; render(true); return; }
+    ui.busy = 'pin'; ui.pinErr = ''; render(true);
+    try { await rpc('safar_start_trip', { p_token: Account.token, p_id: d.id, p_pin: v, p_patch: { startedAt: Date.now(), tripDur: 8000 + t.miles * 2500 } }); }
+    catch (e) { ui.pinErr = e.message; }
+    ui.busy = ''; await poll(); render(true);
+  },
+  skipTrip: d => { const t = feed.trips.find(x => x.id === d.id); patchTrip(d.id, { tripDur: Math.max(0, Date.now() - t.startedAt) }); },
+  complete: d => {
+    const t = feed.trips.find(x => x.id === d.id); prefs.pos = { x: PLACES[t.to].x, y: PLACES[t.to].y }; savePrefs();
+    patchTrip(d.id, { status: 'completed', completedAt: Date.now() });
+    toast(APP_NAME, `Trip complete. You earned ${money(t.fare * (1 - FEE))}.`);
+  }
+};
+
+/* ---------- clock ---------- */
+function tick() {
+  if (!Account.token) return;
+  if (viewKey() !== lastKey) { render(); return; }
+  const now = Date.now(), job = vehicle() && myJob();
+  if (job) {
+    const pt = carPos(job, now);
+    document.querySelectorAll(`[data-car="${job.id}"]`).forEach(g => g.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)}) rotate(${(pt.a || 0).toFixed(0)})`));
+    document.querySelectorAll(`[data-prog="${job.id}"]`).forEach(b => b.style.width = (progress(job, now) * 100).toFixed(1) + '%');
+    document.querySelectorAll(`[data-eta="${job.id}"]`).forEach(x => x.textContent = etaText(job));
+  }
+  document.querySelectorAll('[data-count]').forEach(x => { const t = feed.requests.find(r => r.id === x.dataset.count); if (t) x.textContent = Math.max(0, Math.ceil((t.requestAt + REQ_WINDOW - now) / 1000)); });
+}
+function onLoggedIn() { ui.loaded = false; feed = { requests: [], trips: [] }; poll(); }
+setInterval(tick, 250);
+setInterval(poll, POLL_MS);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+render(true);
+if (Account.token) Account.refresh().then(() => { render(true); poll(); });
+</script></body></html>

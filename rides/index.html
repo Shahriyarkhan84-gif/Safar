@@ -1,0 +1,588 @@
+<!doctype html><html lang="en-GB" class=""><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Safar Rides</title><meta name="description" content="Book a ride across Leeds in seconds.">
+<meta name="theme-color" content="#2347e0"><link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Safar Rides">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;-webkit-tap-highlight-color:transparent}img{max-width:100%}[hidden]{display:none!important}
+/* Layout: one phone-width column. Safar Rides follows the phone's light/dark setting; Safar X is always dark for night driving. */
+:root{
+  --bg:#eef0f5; --surface:#ffffff; --ink:#10131c; --muted:#5c6273; --line:#dadde6; --chip:#e4e7ef;
+  --accent:#2347e0; --accent-ink:#ffffff; --accent-soft:#dde4ff; --amber:#d98f00; --amber-soft:#fdeccb;
+  --danger:#c2362b; --danger-soft:#f8dcd9; --ok:#17845a; --ok-soft:#d6efe3;
+  --road:#ffffff; --ground:#e2e5ee; --park:#cde5d4; --water:#c9dcf1; --car:#10131c;
+  --display:"Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0c0f17; --surface:#151a26; --ink:#e8ebf3; --muted:#98a0b3; --line:#262c3b; --chip:#1d2331;
+  --accent:#7b95ff; --accent-ink:#0a0f22; --accent-soft:#1f2a52; --amber:#f4b13a; --amber-soft:#3a2c10;
+  --danger:#ea6a5e; --danger-soft:#3d1c19; --ok:#4cc58e; --ok-soft:#163626;
+  --road:#2a3142; --ground:#171c28; --park:#1b3326; --water:#17263a; --car:#e8ebf3; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0c0f17; --surface:#151a26; --ink:#e8ebf3; --muted:#98a0b3; --line:#262c3b; --chip:#1d2331;
+  --accent:#7b95ff; --accent-ink:#0a0f22; --accent-soft:#1f2a52; --amber:#f4b13a; --amber-soft:#3a2c10;
+  --danger:#ea6a5e; --danger-soft:#3d1c19; --ok:#4cc58e; --ok-soft:#163626;
+  --road:#2a3142; --ground:#171c28; --park:#1b3326; --water:#17263a; --car:#e8ebf3; color-scheme:dark }
+html:root.x.x{
+  --bg:#0a0c10; --surface:#14171f; --ink:#f1f3f7; --muted:#99a1b2; --line:#252a36; --chip:#1c202b;
+  --accent:#f5b301; --accent-ink:#161105; --accent-soft:#3b2e09; --amber:#f5b301; --amber-soft:#3b2e09;
+  --danger:#ef6b5f; --danger-soft:#3d1c19; --ok:#4cc58e; --ok-soft:#14321f;
+  --road:#252b39; --ground:#11141b; --park:#15271d; --water:#132133; --car:#f1f3f7; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+h1,h2,h3{font-family:var(--display);line-height:1.1;margin:0;text-wrap:balance}
+h1{font-size:1.7rem;font-weight:800;font-stretch:118%}
+h2{font-size:1.15rem;font-weight:700;font-stretch:112%}
+h3{font-size:1rem;font-weight:700;font-stretch:105%}
+p{margin:0}
+a{color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.84rem}
+.label{font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.top-in{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;align-items:center;gap:10px}
+.top-in b{font:800 1.25rem var(--display);font-stretch:122%}
+.top-in svg{width:30px;height:30px;flex:none}
+.conn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font:600 .72rem var(--mono);padding:4px 9px;border-radius:99px;background:var(--chip);color:var(--ink);white-space:nowrap}
+.conn i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.conn.live i{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 48px;display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.stack{display:flex;flex-direction:column;gap:12px;min-width:0}
+.stack.tight{gap:5px}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sheet.hot{border:2px solid var(--accent)}
+
+.map{width:100%;height:auto;display:block;border-radius:18px;border:1px solid var(--line);background:var(--ground)}
+.map .lbl{font:600 8.5px var(--body);fill:var(--muted);paint-order:stroke;stroke:var(--ground);stroke-width:3px;stroke-linejoin:round}
+.map .lbl.hot{fill:var(--ink);font-size:9.5px;font-weight:700}
+
+.btn{appearance:none;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);font:700 .95rem var(--body);padding:13px 16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+.btn:hover{filter:brightness(1.07)}
+.btn.ink{background:var(--ink);color:var(--bg)}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.line{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.danger{background:var(--danger-soft);color:var(--danger)}
+.btn.sm{padding:8px 12px;font-size:.85rem;border-radius:9px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+.seg{display:inline-flex;background:var(--chip);border-radius:11px;padding:3px;gap:2px}
+.seg button{border:0;background:none;font:700 .86rem var(--body);color:var(--muted);padding:7px 12px;border-radius:9px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .1)}
+
+input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;min-width:0}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field > span{font-size:.8rem;font-weight:700;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+.checks{display:flex;flex-direction:column;gap:8px}
+.checks label{display:flex;gap:10px;align-items:center;font-size:.92rem;cursor:pointer}
+.checks input{width:20px;height:20px;flex:none;accent-color:var(--accent)}
+
+.route{display:grid;grid-template-columns:22px 1fr auto;gap:8px 10px;align-items:center}
+.route .dot{width:12px;height:12px;border-radius:50%;background:var(--accent);justify-self:center}
+.route .sq{width:12px;height:12px;background:var(--ink);justify-self:center}
+.route .rail{width:2px;height:14px;background:var(--line);justify-self:center}
+.route select{font-weight:600}
+.swap{grid-row:1/4;grid-column:3;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;font-size:1.1rem}
+
+.rides{display:flex;flex-direction:column;gap:8px}
+.ride{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:14px;border:2px solid var(--line);background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.ride[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.ride svg{width:52px;height:30px}
+.ride .fare{font:600 1rem var(--mono);text-align:right}
+.ride > div{min-width:0}
+
+.plate{font:600 .88rem var(--mono);letter-spacing:.08em;background:#f6cf1a;color:#111;padding:2px 8px;border-radius:4px;border:1.5px solid #111;white-space:nowrap}
+.drv{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center}
+.drv > div{min-width:0}
+.avatar{width:52px;height:52px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font:800 1.15rem var(--display);font-stretch:120%}
+.pin{display:flex;gap:8px}
+.pin span{width:44px;height:50px;border-radius:10px;background:var(--chip);display:grid;place-items:center;font:600 1.35rem var(--mono)}
+.pininput{font:600 1.6rem var(--mono);letter-spacing:.5em;text-align:center;padding:12px}
+.status{font:800 1.3rem var(--display);font-stretch:115%}
+.pulse{width:64px;height:64px;border-radius:50%;background:var(--accent-soft);display:grid;place-items:center;margin:6px auto;position:relative}
+.pulse::before,.pulse::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);animation:ring 1.8s ease-out infinite}
+.pulse::after{animation-delay:.9s}
+.pulse i{width:18px;height:18px;border-radius:50%;background:var(--accent)}
+@keyframes ring{from{transform:scale(1);opacity:.8}to{transform:scale(2.1);opacity:0}}
+.prog{height:6px;border-radius:99px;background:var(--chip);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);transition:width .25s linear}
+.sumrow{display:flex;justify-content:space-between;gap:12px;font-variant-numeric:tabular-nums}
+.sumrow.total{font-weight:800;font-size:1.1rem;padding-top:8px;border-top:1px dashed var(--line)}
+.stars{display:flex;gap:4px;justify-content:center}
+.stars button{border:0;background:none;font-size:2.1rem;line-height:1;cursor:pointer;color:var(--line);padding:2px}
+.stars button.on{color:var(--amber)}
+.tips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tips button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:9px 0;font:600 .9rem var(--mono);cursor:pointer}
+.tips button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.err{color:var(--danger);font-size:.85rem;font-weight:700}
+.note{display:flex;gap:10px;align-items:flex-start;background:var(--chip);border-radius:12px;padding:10px 12px;font-size:.85rem}
+.note.amber{background:var(--amber-soft)}
+.empty{padding:20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px;font-size:.9rem}
+.count{width:62px;height:62px;border-radius:50%;border:3px solid var(--accent);display:grid;place-items:center;font:600 1.4rem var(--mono);color:var(--accent);flex:none}
+.pill{display:inline-flex;align-items:center;gap:6px;font:700 .74rem var(--body);padding:4px 10px;border-radius:99px;background:var(--accent-soft);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;border:0;background:none;font:700 .95rem var(--body);color:var(--ink);padding:0}
+.switch i{width:46px;height:28px;border-radius:99px;background:var(--line);position:relative;transition:background .2s;flex:none}
+.switch i::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / .3);transition:transform .2s}
+.switch[aria-checked="true"] i{background:var(--ok)}
+.switch[aria-checked="true"] i::after{transform:translateX(18px)}
+
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:3px}
+.kpi b{font:800 1.5rem/1.1 var(--display);font-stretch:112%;font-variant-numeric:tabular-nums}
+.list{display:flex;flex-direction:column}
+.list > div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:.88rem}
+.list > div:first-child{border-top:0}
+.list > div > span:first-child{min-width:0}
+.foot{text-align:center;font-size:.84rem;color:var(--muted)}
+.foot a{font-weight:700}
+
+.apps{display:grid;gap:14px}
+.appcard{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:center;padding:18px;border-radius:20px;text-decoration:none;color:inherit;border:1px solid var(--line);background:var(--surface)}
+.appcard svg{width:64px;height:64px}
+.appcard.drive{background:#0a0c10;color:#f1f3f7;border-color:#252a36}
+.appcard.drive .muted{color:#99a1b2}
+.appcard > div{min-width:0}
+.hero{display:flex;flex-direction:column;gap:10px;padding-block:18px 4px}
+.hero svg{width:56px;height:56px}
+.hero h1{font-size:2rem}
+.tel{display:grid;grid-template-columns:auto 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.tel span{display:grid;place-items:center;padding:0 12px;background:var(--chip);font:600 .95rem var(--mono);border-right:1px solid var(--line)}
+.tel input{border:0;border-radius:0}
+.linkbtn{border:0;background:none;color:var(--accent);font:700 .92rem var(--body);cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+.center{text-align:center}
+
+#toasts{position:fixed;z-index:40;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(420px,calc(100% - 32px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--ink);color:var(--bg);border-radius:14px;padding:11px 14px;font-size:.88rem;display:flex;gap:10px;box-shadow:0 10px 30px rgb(0 0 0 / .25);animation:pop .25s ease-out}
+.toast .who{font:600 .68rem var(--mono);text-transform:uppercase;color:var(--amber);flex:none;padding-top:2px}
+@keyframes pop{from{transform:translateY(8px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.tel.pw{grid-template-columns:1fr auto}
+.tel.pw .linkbtn{padding:0 14px;text-decoration:none}
+.avatar.sm{width:36px;height:36px;font-size:.8rem;margin-left:auto;border:0;cursor:pointer}
+</style></head>
+<body><div id="app"></div><div id="toasts" aria-live="polite"></div>
+<script>/* ===== Safar shared core: used by both Safar Rides and Safar X ===== */
+const SB_URL = 'https://uprrsqqnnvpjevoujxmk.supabase.co';
+const SB_KEY = 'sb_publishable_eMwkhTp9QRaT2s6YM03kHg_ZSG4u3uN';
+const PX_PER_MILE = 40 / 0.7, FEE = 0.25, SIM_AFTER = 22000, REQ_WINDOW = 20000, POLL_MS = 2500;
+const FARE = { base: 2.5, mile: 1.25, min: 0.2, minimum: 5 };
+const PLACES = {
+  home: { name: '14 Elm Street', x: 280, y: 200 }, station: { name: 'Leeds Station', x: 160, y: 120 },
+  trinity: { name: 'Trinity Leeds', x: 200, y: 80 }, uni: { name: 'University of Leeds', x: 120, y: 40 },
+  headingley: { name: 'Headingley Stadium', x: 40, y: 40 }, kirkstall: { name: 'Kirkstall Abbey', x: 40, y: 160 },
+  roundhay: { name: 'Roundhay Park', x: 320, y: 40 }, whiterose: { name: 'White Rose Centre', x: 120, y: 240 }
+};
+const TYPES = {
+  go: { name: 'Safar Go', seats: 4, mult: 1, blurb: 'Everyday rides' },
+  green: { name: 'Safar Green', seats: 4, mult: 1.1, blurb: 'Fully electric cars' },
+  comfort: { name: 'Comfort', seats: 4, mult: 1.35, blurb: 'Newer cars, more legroom' },
+  xl: { name: 'Safar XL', seats: 6, mult: 1.65, blurb: 'Groups and luggage' }
+};
+const SIM = [
+  { name: 'Ayesha Malik', car: 'Toyota Prius', colour: 'White', plate: 'YK70 TFR', rating: 4.95, types: ['go'], pos: { x: 200, y: 160 } },
+  { name: 'Tom Brennan', car: 'Škoda Octavia', colour: 'Grey', plate: 'LS19 KJD', rating: 4.88, types: ['go', 'comfort'], pos: { x: 80, y: 80 } },
+  { name: 'Imran Shah', car: 'Kia Niro EV', colour: 'Blue', plate: 'YB22 NWA', rating: 4.91, types: ['go', 'green'], pos: { x: 240, y: 40 } },
+  { name: 'Grace Okafor', car: 'Ford Galaxy', colour: 'Black', plate: 'LN68 XLG', rating: 4.97, types: ['go', 'xl'], pos: { x: 40, y: 200 } }
+];
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => '£' + (Math.round(n * 100) / 100).toFixed(2);
+const first = n => String(n || '').split(' ')[0];
+const initials = n => String(n || '?').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { if (v === null || v === undefined) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const normPhone = v => { let d = String(v || '').replace(/\D/g, ''); if (d.startsWith('44')) d = d.slice(2); if (d.startsWith('0')) d = d.slice(1); return /^7\d{9}$/.test(d) ? d : null; };
+const showPhone = d => '+44 ' + d.slice(0, 4) + ' ' + d.slice(4);
+
+/* ---------- server ---------- */
+class ApiError extends Error { constructor(msg, kind) { super(msg); this.kind = kind; } }
+async function rpc(fn, args) {
+  let r;
+  try {
+    r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(args || {}) });
+  } catch (e) { throw new ApiError('No connection. Check your internet and try again.', 'network'); }
+  const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) {}
+  if (!r.ok) {
+    if (j && j.hint === 'session') throw new ApiError(j.message, 'session');
+    if (j && (j.code === 'PGRST202' || j.code === '42883' || j.code === '42P01')) throw new ApiError('Safar is still being set up. Try again in a minute.', 'setup');
+    if (j && j.code === 'P0001' && j.message) throw new ApiError(j.message, 'rule');
+    throw new ApiError('Something went wrong on our side. Try again in a moment.', 'error');
+  }
+  return j;
+}
+
+/* ---------- geometry & pricing ---------- */
+const path = (a, b) => [a, { x: b.x, y: a.y }, b];
+function len(p) { let d = 0; for (let i = 1; i < p.length; i++) d += Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y); return d; }
+function pointAt(p, t) {
+  let goal = Math.min(1, Math.max(0, t)) * len(p);
+  for (let i = 1; i < p.length; i++) {
+    const d = Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y);
+    if (goal <= d || i === p.length - 1) { const f = d ? Math.min(1, goal / d) : 1; return { x: p[i - 1].x + (p[i].x - p[i - 1].x) * f, y: p[i - 1].y + (p[i].y - p[i - 1].y) * f, a: d ? Math.atan2(p[i].y - p[i - 1].y, p[i].x - p[i - 1].x) * 180 / Math.PI : 0 }; }
+    goal -= d;
+  }
+  const e = p[p.length - 1]; return { x: e.x, y: e.y, a: 0 };
+}
+function fareFor(from, to, type) {
+  const miles = len(path(PLACES[from], PLACES[to])) / PX_PER_MILE, mins = Math.round(miles * 3.2 + 3), m = TYPES[type].mult;
+  const parts = { base: FARE.base * m, dist: FARE.mile * miles * m, time: FARE.min * mins * m };
+  return { miles, mins, parts, fare: Math.round(Math.max(parts.base + parts.dist + parts.time, FARE.minimum * m) * 100) / 100 };
+}
+const minsBetween = (a, b) => Math.max(1, Math.round(len(path(a, b)) / PX_PER_MILE * 3 + 1));
+const nearestSim = (pt, type) => SIM.filter(d => d.types.includes(type)).sort((a, b) => len(path(a.pos, pt)) - len(path(b.pos, pt)))[0];
+
+/* ---------- trip phases, derived from timestamps so both phones agree ---------- */
+function phase(t, now = Date.now()) {
+  if (t.status === 'accepted') return now < t.acceptedAt + t.pickupDur ? 'arriving' : 'arrived';
+  if (t.status === 'ontrip') return now < t.startedAt + t.tripDur ? 'ontrip' : 'dropoff';
+  return t.status;
+}
+function progress(t, now = Date.now()) {
+  const ph = phase(t, now);
+  if (ph === 'arriving') return Math.min(1, (now - t.acceptedAt) / t.pickupDur);
+  if (ph === 'ontrip') return Math.min(1, (now - t.startedAt) / t.tripDur);
+  return ph === 'searching' ? 0 : 1;
+}
+function carPos(t, now = Date.now()) {
+  const ph = phase(t, now), A = PLACES[t.from], B = PLACES[t.to];
+  if (ph === 'arriving') return pointAt(path(t.start, A), progress(t, now));
+  if (ph === 'arrived') return { ...A, a: 0 };
+  if (ph === 'ontrip') return pointAt(path(A, B), progress(t, now));
+  return { ...B, a: 0 };
+}
+function etaText(t) {
+  const ph = phase(t), p = progress(t);
+  if (ph === 'arriving') return `Arriving in ${Math.max(1, Math.ceil((1 - p) * t.pickupMins))} min`;
+  if (ph === 'arrived') return 'Waiting at pickup';
+  if (ph === 'ontrip') return `${Math.max(1, Math.ceil((1 - p) * t.mins))} min to ${PLACES[t.to].name}`;
+  if (ph === 'dropoff') return `Arrived at ${PLACES[t.to].name}`;
+  return '';
+}
+
+/* ---------- UI pieces ---------- */
+function toast(who, text) {
+  const box = document.getElementById('toasts'), el = document.createElement('div');
+  el.className = 'toast'; el.innerHTML = `<span class="who">${esc(who)}</span><span>${esc(text)}</span>`;
+  box.appendChild(el); while (box.children.length > 3) box.firstChild.remove();
+  setTimeout(() => el.remove(), 4500);
+}
+const LOGO_R = `<svg viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="14" fill="#2347e0"/><path d="M8 19 C 11 9, 19 21, 22 11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="22" cy="11" r="2.6" fill="#f5b301"/></svg>`;
+const LOGO_X = `<svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="8" fill="#f5b301"/><path d="M9 9 L21 21 M21 9 L9 21" stroke="#161105" stroke-width="3.4" stroke-linecap="round"/></svg>`;
+const carIcon = type => { const c = type === 'green' ? 'var(--ok)' : type === 'comfort' ? 'var(--muted)' : 'var(--car)'; const w = type === 'xl' ? 48 : 44; return `<svg viewBox="0 0 52 30" aria-hidden="true"><rect x="2" y="12" width="${w}" height="11" rx="4" fill="${c}"/><path d="M10 12 L16 5 H${type === 'xl' ? 40 : 32} L${type === 'xl' ? 46 : 40} 12 Z" fill="${c}" opacity=".75"/><circle cx="12" cy="23" r="4" fill="var(--surface)" stroke="var(--car)" stroke-width="2"/><circle cx="${w - 8}" cy="23" r="4" fill="var(--surface)" stroke="var(--car)" stroke-width="2"/></svg>`; };
+function mapSVG(o) {
+  const A = o.from && PLACES[o.from], B = o.to && PLACES[o.to];
+  let streets = '';
+  for (let x = 0; x <= 360; x += 40) streets += `<line x1="${x}" y1="-10" x2="${x}" y2="270"/>`;
+  for (let y = 0; y <= 260; y += 40) streets += `<line x1="-10" y1="${y}" x2="370" y2="${y}"/>`;
+  const labels = Object.entries(PLACES).map(([k, p]) => {
+    const hot = k === o.from || k === o.to, anchor = p.x > 300 ? 'end' : p.x < 60 ? 'start' : 'middle';
+    return `${hot ? '' : `<circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--muted)"/>`}<text class="lbl ${hot ? 'hot' : ''}" x="${p.x}" y="${p.y - 9}" text-anchor="${anchor}">${esc(p.name)}</text>`;
+  }).join('');
+  const car = (c, mine) => `<g ${c.id ? `data-car="${c.id}"` : ''} transform="translate(${c.x.toFixed(1)} ${c.y.toFixed(1)}) rotate(${(c.a || 0).toFixed(0)})">${mine ? '<circle r="15" fill="var(--accent)" opacity=".2"/>' : ''}<rect x="-8" y="-5" width="16" height="10" rx="3.5" fill="${mine ? 'var(--accent)' : 'var(--car)'}" stroke="var(--surface)" stroke-width="1.5"/><rect x="0" y="-3.6" width="4.5" height="7.2" rx="1.4" fill="var(--surface)" opacity=".75"/></g>`;
+  return `<svg class="map" viewBox="-10 -10 380 280" role="img" aria-label="Map of Leeds${A && B ? ' with the route from ' + esc(A.name) + ' to ' + esc(B.name) : ''}">
+    <rect x="-10" y="-10" width="380" height="280" fill="var(--ground)"/>
+    <rect x="286" y="6" width="74" height="50" rx="10" fill="var(--park)"/><rect x="-4" y="124" width="58" height="52" rx="10" fill="var(--park)"/>
+    <path d="M-10 100 C 60 90, 110 112, 170 100 S 290 92, 370 104" fill="none" stroke="var(--water)" stroke-width="9" stroke-linecap="round"/>
+    <g stroke="var(--road)" stroke-width="8" stroke-linecap="round">${streets}</g>
+    ${o.approach && A ? `<polyline points="${path(o.approach, A).map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-dasharray="1 7" stroke-linecap="round"/>` : ''}
+    ${A && B ? `<polyline points="${path(A, B).map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--ink)" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+    ${labels}
+    ${A ? `<g transform="translate(${A.x} ${A.y})"><circle r="9" fill="var(--accent)"/><circle r="3.5" fill="var(--surface)"/></g>` : ''}
+    ${B ? `<g transform="translate(${B.x} ${B.y})"><rect x="-8" y="-8" width="16" height="16" fill="var(--ink)"/><rect x="-3" y="-3" width="6" height="6" fill="var(--surface)"/></g>` : ''}
+    ${(o.cars || []).map(c => car(c, false)).join('')}${o.mine ? car(o.mine, true) : ''}
+  </svg>`;
+}
+
+/* ---------- account: log in and sign up (shared by both apps) ---------- */
+const Account = {
+  key: '', app: '', me: null, token: null,
+  init(app) { this.app = app; this.key = 'safar-' + app + '-session'; this.token = LS.get(this.key, null); this.me = LS.get(this.key + '-me', null); },
+  set(res) { this.token = res.token; this.me = res.account; LS.set(this.key, this.token); LS.set(this.key + '-me', this.me); },
+  setMe(me) { this.me = me; LS.set(this.key + '-me', me); },
+  clear() { this.token = null; this.me = null; LS.set(this.key, null); LS.set(this.key + '-me', null); },
+  async refresh() {
+    if (!this.token) return;
+    try { this.setMe(await rpc('safar_me', { p_token: this.token, p_app: this.app })); }
+    catch (e) { if (e.kind === 'session') { this.clear(); render(true); } }
+  }
+};
+const authUI = { step: null, draft: { name: '', email: '', phone: '', password: '', terms: false }, err: '', busy: false, show: false };
+function authView(o) {
+  const s = authUI, d = s.draft;
+  if (!s.step) s.step = LS.get('safar-' + o.app + '-known', false) ? 'login' : 'signup';
+  const hero = `<section class="hero">${o.logo}<h1>${o.name}</h1><p class="muted">${o.tagline}</p></section>`;
+  const err = s.err ? `<p class="err" role="alert">${esc(s.err)}</p>` : '';
+  const phone = `<label class="field"><span>Mobile number</span><span class="tel"><span>+44</span><input id="au-phone" data-auth="phone" type="tel" inputmode="tel" autocomplete="tel-national" value="${esc(d.phone)}" placeholder="07700 900123"></span></label>`;
+  const pass = (auto) => `<label class="field"><span>Password</span><span class="tel pw"><input id="au-password" data-auth="password" type="${s.show ? 'text' : 'password'}" autocomplete="${auto}" value="${esc(d.password)}" placeholder="${auto === 'new-password' ? 'At least 8 characters' : 'Your password'}"><button type="button" class="linkbtn" data-act="togglePw">${s.show ? 'Hide' : 'Show'}</button></span></label>`;
+  const busy = s.busy ? 'disabled' : '';
+  let sheet;
+  if (s.step === 'login') {
+    sheet = `<section class="sheet"><div class="stack tight"><h2>Log in</h2><p class="small muted">Use the mobile number and password for your ${o.name} account.</p></div>
+      ${phone}${pass('current-password')}${err}
+      <button class="btn block" data-act="login" ${busy}>${s.busy ? 'Logging in…' : 'Log in'}</button>
+      <p class="small center">New to ${o.name}? <button class="linkbtn" data-act="authStep" data-step="signup">Create an account</button></p></section>`;
+  } else {
+    sheet = `<section class="sheet"><div class="stack tight">${o.steps ? '<span class="label">Step 1 of 2</span>' : ''}<h2>${o.signupTitle}</h2><p class="small muted">${o.signupNote}</p></div>
+      <label class="field"><span>Full name</span><input id="au-name" data-auth="name" autocomplete="name" value="${esc(d.name)}" placeholder="${o.namePh}"></label>
+      <label class="field"><span>Email</span><input id="au-email" data-auth="email" type="email" autocomplete="email" value="${esc(d.email)}" placeholder="you@example.com"></label>
+      ${phone}${pass('new-password')}
+      <div class="checks"><label><input type="checkbox" id="au-terms" data-auth="terms" ${d.terms ? 'checked' : ''}>${o.termsText}</label></div>
+      ${err}
+      <button class="btn block" data-act="signup" ${busy}>${s.busy ? 'Creating your account…' : 'Create account'}</button>
+      <p class="small center">Already have an account? <button class="linkbtn" data-act="authStep" data-step="login">Log in</button></p></section>`;
+  }
+  return `<main class="wrap">${hero}${sheet}<p class="foot">${o.other}</p></main>`;
+}
+const AuthActions = {
+  authStep: d => { authUI.step = d.step; authUI.err = ''; render(true); },
+  togglePw: () => { authUI.show = !authUI.show; render(true); },
+  login: async () => {
+    const d = authUI.draft, ph = normPhone(d.phone);
+    authUI.err = !ph ? 'Enter a UK mobile number, for example 07700 900123.' : !d.password ? 'Enter your password.' : '';
+    if (authUI.err) { render(true); return; }
+    authUI.busy = true; render(true);
+    try { Account.set(await rpc('safar_login', { p_app: Account.app, p_phone: ph, p_password: d.password })); authDone(false); }
+    catch (e) { authUI.err = e.message; }
+    authUI.busy = false; render(true);
+  },
+  signup: async () => {
+    const d = authUI.draft, ph = normPhone(d.phone);
+    authUI.err = d.name.trim().length < 2 ? 'Enter your full name.' : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(d.email.trim()) ? 'Enter a valid email address, for example you@example.com.' : !ph ? 'Enter a UK mobile number, for example 07700 900123.' : d.password.length < 8 ? 'Use a password of at least 8 characters.' : !d.terms ? 'Tick the box to agree to the terms and privacy policy.' : '';
+    if (authUI.err) { render(true); return; }
+    authUI.busy = true; render(true);
+    try { Account.set(await rpc('safar_signup', { p_app: Account.app, p_name: d.name.trim(), p_email: d.email.trim(), p_phone: ph, p_password: d.password })); authDone(true); }
+    catch (e) { authUI.err = e.message; }
+    authUI.busy = false; render(true);
+  },
+  logout: async () => {
+    const t = Account.token; Account.clear(); authUI.step = 'login'; authUI.draft.password = ''; render(true); window.scrollTo(0, 0);
+    if (t) rpc('safar_logout', { p_token: t }).catch(() => {});
+  }
+};
+function authDone(isNew) {
+  LS.set('safar-' + Account.app + '-known', true);
+  authUI.err = ''; authUI.draft = { name: '', email: '', phone: '', password: '', terms: false }; authUI.show = false;
+  toast(APP_NAME, isNew ? `Welcome to ${APP_NAME}, ${first(Account.me.name)}.` : `Welcome back, ${first(Account.me.name)}.`);
+  onLoggedIn();
+}
+
+/* ---------- shared wiring ---------- */
+let pendingRender = false;
+function render(force) {
+  const a = document.activeElement;
+  if (!force && a && a.closest && a.closest('#app') && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) { pendingRender = true; return; }
+  pendingRender = false;
+  document.getElementById('app').innerHTML = view();
+  lastKey = viewKey();
+}
+let lastKey = '';
+document.addEventListener('focusout', () => setTimeout(() => { if (pendingRender) render(); }, 0));
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
+  e.preventDefault(); const fn = AuthActions[el.dataset.act] || ACTIONS[el.dataset.act]; if (fn) fn(el.dataset);
+});
+document.addEventListener('input', e => { const t = e.target; if (t.dataset && t.dataset.auth) authUI.draft[t.dataset.auth] = t.type === 'checkbox' ? t.checked : t.value; });
+document.addEventListener('change', e => { const t = e.target; if (t.dataset && t.dataset.auth === 'terms') authUI.draft.terms = t.checked; });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.id) return;
+  const map = { 'au-phone': authUI.step === 'login' ? 'login' : 'signup', 'au-password': authUI.step === 'login' ? 'login' : 'signup', pin: 'start' };
+  const act = map[e.target.id]; if (act) { const b = document.querySelector(`[data-act="${act}"]`); if (b) b.click(); }
+});
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+
+/* ===== Safar Rides: the rider app ===== */
+const APP_NAME = 'Safar Rides';
+Account.init('rides');
+const prefs = Object.assign({ draft: { from: 'home', to: 'station', type: 'go', pay: 'card' } }, LS.get('safar-rides-prefs', {}));
+const savePrefs = () => LS.set('safar-rides-prefs', prefs);
+const ui = { tab: 'ride', stars: 0, tip: 0, simNow: new Set(), busy: false, loaded: false };
+let trips = [];
+const writing = new Set();
+const arrivedSeen = new Set();
+
+function activeTrip() {
+  const now = Date.now();
+  return trips.filter(t => t.status !== 'cancelled' && !t.rated && (t.status !== 'completed' || now - (t.completedAt || t.requestAt) < 3 * 3600000))
+    .sort((a, b) => b.requestAt - a.requestAt)[0];
+}
+
+/* ---------- server sync ---------- */
+async function poll() {
+  if (!Account.token || document.hidden) return;
+  try {
+    const list = await rpc('safar_my_trips', { p_token: Account.token });
+    const old = Object.fromEntries(trips.map(t => [t.id, t]));
+    trips = list.map(t => writing.has(t.id) && old[t.id] ? old[t.id] : t);
+    ui.loaded = true; notifyChanges(old); render();
+  } catch (e) { if (e.kind === 'session') { Account.clear(); toast(APP_NAME, e.message); render(true); } }
+}
+async function patchTrip(id, patch, quiet) {
+  const t = trips.find(x => x.id === id); if (!t) return;
+  writing.add(id); Object.assign(t, patch); render();
+  try { await rpc('safar_update_trip', { p_token: Account.token, p_app: 'rides', p_id: id, p_patch: patch }); }
+  catch (e) { if (!quiet) toast(APP_NAME, e.message); }
+  writing.delete(id); poll();
+}
+function notifyChanges(old) {
+  for (const t of trips) {
+    const o = old[t.id]; if (!o) continue;
+    if (o.status === 'searching' && t.status === 'accepted' && t.driver) toast(APP_NAME, `${first(t.driver.name)} is coming in a ${String(t.driver.colour).toLowerCase()} ${t.driver.car} · ${t.driver.plate}`);
+    if (o.status === 'accepted' && t.status === 'ontrip') toast(APP_NAME, `Trip started. About ${t.mins} min to ${PLACES[t.to].name}.`);
+  }
+}
+
+/* ---------- views ---------- */
+function view() {
+  if (!Account.token) return authView({ app: 'rides', name: APP_NAME, logo: LOGO_R, tagline: 'Rides across Leeds, booked in seconds.', signupTitle: 'Create your account', signupNote: 'Your driver sees your first name when they pick you up.', namePh: 'Sara Hussain', termsText: 'I agree to the Safar Rides terms and privacy policy', other: 'Want to drive? Get the <b>Safar X</b> driver app.' });
+  const me = Account.me || { name: '' };
+  const head = `<header class="top"><div class="top-in">${LOGO_R}<b>Safar Rides</b><button class="avatar sm" data-act="tab" data-tab="account" aria-label="Your account">${esc(initials(me.name))}</button></div></header>`;
+  if (!ui.loaded) return head + `<main class="wrap"><div class="empty">Loading your rides…</div></main>`;
+  const t = activeTrip();
+  if (t) return head + `<main class="wrap">${tripMap(t)}${tripSheet(t)}</main>`;
+  const tabs = `<div class="seg" role="group"><button data-act="tab" data-tab="ride" aria-pressed="${ui.tab === 'ride'}">Ride</button><button data-act="tab" data-tab="trips" aria-pressed="${ui.tab === 'trips'}">My trips</button><button data-act="tab" data-tab="account" aria-pressed="${ui.tab === 'account'}">Account</button></div>`;
+  if (ui.tab === 'account') return head + `<main class="wrap">${tabs}<section class="sheet"><div class="drv" style="grid-template-columns:52px 1fr"><div class="avatar">${esc(initials(me.name))}</div><div class="stack tight"><h2>${esc(me.name)}</h2><span class="small muted">${esc(me.email || '')}</span><span class="small muted mono">${me.phone ? showPhone(me.phone) : ''}</span></div></div><button class="btn line" data-act="logout">Log out</button></section></main>`;
+  if (ui.tab === 'trips') {
+    const done = trips.filter(x => x.status === 'completed' || x.status === 'cancelled');
+    return head + `<main class="wrap">${tabs}${done.length ? `<section class="sheet"><div class="list">${done.map(x => `<div><span><b>${esc(PLACES[x.from].name)} → ${esc(PLACES[x.to].name)}</b><br><span class="small muted">${TYPES[x.type].name} · ${x.driver ? esc(first(x.driver.name)) : 'no driver'} · ${ago(x.requestAt)}</span></span><span class="mono">${x.status === 'cancelled' ? 'Cancelled' : money(x.fare + (x.tip || 0))}</span></div>`).join('')}</div></section>` : '<div class="empty">No trips yet. Book your first ride.</div>'}</main>`;
+  }
+  const d = prefs.draft, same = d.from === d.to, A = PLACES[d.from];
+  const opts = sel => Object.entries(PLACES).map(([k, p]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  const f = same ? null : fareFor(d.from, d.to, d.type);
+  return head + `<main class="wrap">${tabs}
+    ${mapSVG({ from: d.from, to: same ? null : d.to, cars: SIM.map(s => ({ ...s.pos, a: 0 })) })}
+    <section class="sheet">
+      <div class="stack tight"><span class="label">Hi ${esc(first(me.name))}</span><h1>Where to?</h1></div>
+      <div class="route">
+        <span class="dot"></span><select id="from" data-draft="from" aria-label="Pickup">${opts(d.from)}</select>
+        <button class="swap" data-act="swap" aria-label="Swap pickup and destination">⇅</button>
+        <span class="rail"></span><span></span>
+        <span class="sq"></span><select id="to" data-draft="to" aria-label="Destination">${opts(d.to)}</select>
+      </div>
+      ${same ? '<p class="err">Pick a destination different from your pickup.</p>' : `
+      <div class="rides" role="group" aria-label="Ride type">${Object.entries(TYPES).map(([k, ty]) => { const fx = fareFor(d.from, d.to, k), car = nearestSim(A, k); return `<button class="ride" data-act="type" data-type="${k}" aria-pressed="${d.type === k}">${carIcon(k)}<div><h3>${ty.name} <span class="small muted">· ${ty.seats} seats</span></h3><p class="small muted">${minsBetween(car.pos, A)} min away · ${ty.blurb}</p></div><span class="fare">${money(fx.fare)}</span></button>`; }).join('')}</div>
+      <div class="spread"><span class="small muted mono">${f.miles.toFixed(1)} mi · about ${f.mins} min</span>
+        <div class="seg" role="group" aria-label="Payment"><button data-act="pay" data-pay="card" aria-pressed="${d.pay === 'card'}">Card</button><button data-act="pay" data-pay="cash" aria-pressed="${d.pay === 'cash'}">Cash</button></div></div>
+      <button class="btn ink block" data-act="request" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Requesting…' : `Request ${TYPES[d.type].name} · ${money(f.fare)}`}</button>`}
+    </section></main>`;
+}
+function tripMap(t) {
+  const ph = phase(t);
+  if (ph === 'searching') return mapSVG({ from: t.from, to: t.to, cars: SIM.map(s => ({ ...s.pos, a: 0 })) });
+  if (ph === 'dropoff' || ph === 'completed') return '';
+  return mapSVG({ from: t.from, to: t.to, approach: ph === 'arriving' ? t.start : null, mine: { ...carPos(t), id: t.id } });
+}
+function driverCard(t) {
+  const d = t.driver;
+  return `<div class="drv"><div class="avatar">${esc(initials(d.name))}</div><div class="stack tight"><h3>${esc(first(d.name))} <span class="small muted">★ ${Number(d.rating).toFixed(2)}</span></h3><span class="small muted">${esc(d.colour)} ${esc(d.car)}${d.sim ? ' · test driver' : ' · Safar X driver'}</span></div><span class="plate">${esc(d.plate)}</span></div>`;
+}
+function tripSheet(t) {
+  const ph = phase(t);
+  if (ph === 'searching') {
+    const left = Math.max(0, Math.ceil((t.requestAt + SIM_AFTER - Date.now()) / 1000));
+    return `<section class="sheet"><div class="pulse"><i></i></div><p class="status center">Finding your ${esc(TYPES[t.type].name)}</p>
+      <p class="small muted center">${esc(PLACES[t.from].name)} → ${esc(PLACES[t.to].name)} · <span class="mono">${money(t.fare)}</span></p>
+      <div class="note"><span>📡</span><span>Sent to Safar X drivers nearby. If nobody accepts in <b class="mono" data-simcount="${t.id}">${left}s</b>, a test driver takes the ride.</span></div>
+      <div class="row"><button class="btn line sm" data-act="simNow" data-id="${t.id}">Use a test driver now</button><button class="btn danger sm" data-act="cancel" data-id="${t.id}">Cancel request</button></div></section>`;
+  }
+  if (ph === 'arriving' || ph === 'arrived') return `<section class="sheet">
+      <div class="spread"><p class="status" data-eta="${t.id}">${ph === 'arrived' ? 'Your driver is outside' : etaText(t)}</p><span class="pill">${ph === 'arrived' ? 'Outside' : 'On the way'}</span></div>
+      <div class="prog"><i data-prog="${t.id}" style="width:${(progress(t) * 100).toFixed(1)}%"></i></div>
+      ${driverCard(t)}
+      <div class="spread"><div class="stack tight"><span class="label">Your trip PIN</span><span class="small muted">Tell the driver before you get in</span></div><div class="pin">${String(t.pin).split('').map(c => `<span>${c}</span>`).join('')}</div></div>
+      <button class="btn danger sm" data-act="cancel" data-id="${t.id}">Cancel ride</button></section>`;
+  if (ph === 'ontrip') return `<section class="sheet">
+      <div class="spread"><p class="status" data-eta="${t.id}">${etaText(t)}</p><span class="pill">On trip</span></div>
+      <div class="prog"><i data-prog="${t.id}" style="width:${(progress(t) * 100).toFixed(1)}%"></i></div>
+      ${driverCard(t)}<p class="small muted">Paying by ${t.pay === 'card' ? 'card' : 'cash'}</p></section>`;
+  const d = t.driver;
+  return `<section class="sheet">
+      <div class="stack tight center"><span class="label">You've arrived</span><h1>${esc(PLACES[t.to].name)}</h1></div>
+      <div class="stack tight">
+        <div class="sumrow small"><span>Base fare</span><span class="mono">${money(t.parts.base)}</span></div>
+        <div class="sumrow small"><span>Distance · ${t.miles.toFixed(1)} mi</span><span class="mono">${money(t.parts.dist)}</span></div>
+        <div class="sumrow small"><span>Time · ${t.mins} min</span><span class="mono">${money(t.parts.time)}</span></div>
+        ${ui.tip ? `<div class="sumrow small"><span>Tip for ${esc(first(d.name))}</span><span class="mono">${money(ui.tip)}</span></div>` : ''}
+        <div class="sumrow total"><span>${t.pay === 'card' ? 'Total by card' : 'Pay in cash'}</span><span class="mono">${money(t.fare + ui.tip)}</span></div>
+      </div>
+      <h2 class="center">How was your ride with ${esc(first(d.name))}?</h2>
+      <div class="stars" role="group" aria-label="Rate your driver">${[1, 2, 3, 4, 5].map(n => `<button data-act="star" data-n="${n}" class="${n <= ui.stars ? 'on' : ''}" aria-label="${n} star${n > 1 ? 's' : ''}">★</button>`).join('')}</div>
+      <div class="tips" role="group" aria-label="Add a tip">${[0, 1, 2, 3].map(n => `<button data-act="tip" data-n="${n}" aria-pressed="${ui.tip === n}">${n ? '£' + n : 'No tip'}</button>`).join('')}</div>
+      <button class="btn ink block" data-act="finish" data-id="${t.id}">${ui.stars ? 'Submit and close' : 'Skip rating'}</button></section>`;
+}
+function viewKey() { const t = Account.token && activeTrip(); return (Account.token ? 'in' : 'out') + (t ? t.id + phase(t) : ''); }
+
+/* ---------- actions ---------- */
+const ACTIONS = {
+  tab: d => { ui.tab = d.tab; render(true); },
+  swap: () => { const f = prefs.draft.from; prefs.draft.from = prefs.draft.to; prefs.draft.to = f; savePrefs(); render(true); },
+  type: d => { prefs.draft.type = d.type; savePrefs(); render(true); },
+  pay: d => { prefs.draft.pay = d.pay; savePrefs(); render(true); },
+  request: async () => {
+    const d = prefs.draft; if (d.from === d.to || ui.busy) return;
+    const f = fareFor(d.from, d.to, d.type), now = Date.now();
+    const trip = { id: 'SF' + now.toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(), from: d.from, to: d.to, type: d.type, pay: d.pay,
+      miles: f.miles, mins: f.mins, fare: f.fare, parts: f.parts, pin: String(Math.floor(1000 + Math.random() * 9000)), requestAt: now, rated: false, tip: 0 };
+    ui.busy = true; ui.stars = 0; ui.tip = 0; render(true);
+    try { await rpc('safar_request_trip', { p_token: Account.token, p_trip: trip }); trips.unshift(Object.assign({ status: 'searching', riderName: first(Account.me.name) }, trip)); }
+    catch (e) { toast(APP_NAME, e.message); }
+    ui.busy = false; render(true); poll();
+  },
+  simNow: d => { ui.simNow.add(d.id); tick(); },
+  cancel: d => { patchTrip(d.id, { status: 'cancelled', cancelledAt: Date.now() }); toast(APP_NAME, 'Ride cancelled. You have not been charged.'); },
+  star: d => { ui.stars = +d.n; render(true); },
+  tip: d => { ui.tip = +d.n; render(true); },
+  finish: d => {
+    const t = trips.find(x => x.id === d.id), patch = { rated: true, rating: ui.stars || null, tip: ui.tip };
+    if (t.status === 'ontrip') Object.assign(patch, { status: 'completed', completedAt: Date.now() });
+    patchTrip(d.id, patch); ui.stars = 0; ui.tip = 0; ui.tab = 'ride';
+  }
+};
+document.addEventListener('change', e => { const t = e.target; if (t.dataset && t.dataset.draft) { prefs.draft[t.dataset.draft] = t.value; savePrefs(); render(true); } });
+
+/* ---------- clock ---------- */
+function tick() {
+  if (!Account.token) return;
+  const now = Date.now(), t = activeTrip();
+  if (t && !writing.has(t.id)) {
+    if (t.status === 'searching' && (now - t.requestAt > SIM_AFTER || ui.simNow.has(t.id))) {
+      const s = nearestSim(PLACES[t.from], t.type);
+      patchTrip(t.id, { status: 'accepted', driver: { name: s.name, car: s.car, colour: s.colour, plate: s.plate, rating: s.rating, sim: true },
+        start: { x: s.pos.x, y: s.pos.y }, acceptedAt: now, pickupDur: Math.max(5000, len(path(s.pos, PLACES[t.from])) / 40 * 1600), pickupMins: minsBetween(s.pos, PLACES[t.from]) }, true);
+    } else if (t.status === 'accepted' && t.driver && t.driver.sim && now > t.acceptedAt + t.pickupDur + 3000) {
+      patchTrip(t.id, { status: 'ontrip', startedAt: now, tripDur: 8000 + t.miles * 2500 }, true);
+    }
+    if (t.status === 'accepted' && phase(t, now) === 'arrived' && !arrivedSeen.has(t.id)) { arrivedSeen.add(t.id); toast(APP_NAME, `${first(t.driver.name)} is outside. Your PIN is ${t.pin}.`); }
+  }
+  if (viewKey() !== lastKey) { render(); return; }
+  if (t) {
+    const pt = carPos(t, now);
+    document.querySelectorAll(`[data-car="${t.id}"]`).forEach(g => g.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)}) rotate(${(pt.a || 0).toFixed(0)})`));
+    document.querySelectorAll(`[data-prog="${t.id}"]`).forEach(b => b.style.width = (progress(t, now) * 100).toFixed(1) + '%');
+    document.querySelectorAll(`[data-eta="${t.id}"]`).forEach(x => { if (phase(t, now) !== 'arrived') x.textContent = etaText(t); });
+    document.querySelectorAll(`[data-simcount="${t.id}"]`).forEach(x => x.textContent = Math.max(0, Math.ceil((t.requestAt + SIM_AFTER - now) / 1000)) + 's');
+  }
+}
+function onLoggedIn() { ui.loaded = false; ui.tab = 'ride'; trips = []; poll(); }
+setInterval(tick, 250);
+setInterval(poll, POLL_MS);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+render(true);
+if (Account.token) { Account.refresh(); poll(); }
+</script></body></html>
