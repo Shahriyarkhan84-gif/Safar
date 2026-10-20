@@ -497,7 +497,9 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
 /* ===== Safar Rides: the rider app (dark design) ===== */
 const APP_NAME = 'Safar Rides';
 Account.init('rides');
-const prefs = Object.assign({ draft: { from: 'home', to: 'station', type: 'go', pay: 'card' }, reservations: [] }, LS.get('safar-rides-prefs', {}));
+const prefs = Object.assign({ draft: { from: 'home', to: 'station', type: 'go', pay: 'card' } }, LS.get('safar-rides-prefs', {}));
+delete prefs.reservations;
+let reservations = [];
 const savePrefs = () => LS.set('safar-rides-prefs', prefs);
 const ui = { tab: 'home', screen: null, later: null, laterOpen: false, stars: 0, tip: 0, simNow: new Set(), busy: false, loaded: false };
 let trips = [];
@@ -545,8 +547,10 @@ function activeTrip() {
 async function poll() {
   if (!Account.token || document.hidden) return;
   try {
-    const list = await rpc('safar_my_trips', { p_token: Account.token });
+    const [list, res] = await Promise.all([rpc('safar_my_trips', { p_token: Account.token }), rpc('safar_my_reservations', { p_token: Account.token }).catch(() => reservations)]);
+    reservations = res || [];
     const old = Object.fromEntries(trips.map(t => [t.id, t]));
+    if (ui.loaded) for (const t of list) if (!old[t.id] && t.reserved && t.status === 'searching') toast(APP_NAME, `Your reserved ride to ${PLACES[t.to].name} is now finding a driver.`);
     trips = list.map(t => writing.has(t.id) && old[t.id] ? old[t.id] : t);
     ui.loaded = true; notifyChanges(old); render();
   } catch (e) { if (e.kind === 'session') { Account.clear(); toast(APP_NAME, e.message); render(true); } }
@@ -565,11 +569,14 @@ function notifyChanges(old) {
     if (o.status === 'accepted' && t.status === 'ontrip') toast(APP_NAME, `Trip started. About ${t.mins} min to ${PLACES[t.to].name}.`);
   }
 }
-async function requestRide(d, reserved) {
-  if (d.from === d.to || ui.busy) return false;
+function buildTrip(d, prefix) {
   const f = fareFor(d.from, d.to, d.type), now = Date.now();
-  const trip = { id: 'SF' + now.toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(), from: d.from, to: d.to, type: d.type, pay: d.pay,
-    miles: f.miles, mins: f.mins, fare: f.fare, parts: f.parts, pin: String(Math.floor(1000 + Math.random() * 9000)), requestAt: now, rated: false, tip: 0, reserved: !!reserved };
+  return { id: prefix + now.toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(), from: d.from, to: d.to, type: d.type, pay: d.pay,
+    miles: f.miles, mins: f.mins, fare: f.fare, parts: f.parts, pin: String(Math.floor(1000 + Math.random() * 9000)), requestAt: now, rated: false, tip: 0 };
+}
+async function requestRide(d) {
+  if (d.from === d.to || ui.busy) return false;
+  const trip = buildTrip(d, 'SF');
   ui.busy = true; ui.stars = 0; ui.tip = 0; render(true);
   let ok = false;
   try { await rpc('safar_request_trip', { p_token: Account.token, p_trip: trip }); trips.unshift(Object.assign({ status: 'searching', riderName: first(Account.me.name) }, trip)); ok = true; }
@@ -644,10 +651,10 @@ function servicesView() {
       <button class="svc" data-act="toggleLater" data-open="1">${art('later')}<span><b>Reserve</b><br><small>Book a pickup time ahead</small></span></button></div>`;
 }
 function activityView() {
-  const done = trips.filter(x => x.status === 'completed' || x.status === 'cancelled'), res = prefs.reservations.slice().sort((a, b) => a.at - b.at);
+  const done = trips.filter(x => x.status === 'completed' || x.status === 'cancelled'), res = reservations.slice().sort((a, b) => a.at - b.at);
   return `<h1>Activity</h1>
-    <section class="stack"><h2>Upcoming</h2>${res.length ? `<div class="menu">${res.map(r => `<div><span><b>${esc(PLACES[r.from].name)} → ${esc(PLACES[r.to].name)}</b><br><span class="small muted">${esc(timeLabel(r.at))} · ${TYPES[r.type].name}</span></span><button class="btn danger sm" data-act="unreserve" data-id="${r.id}">Cancel</button></div>`).join('')}</div>
-      <p class="small muted">Keep Safar Rides open on your phone: reserved rides are sent to drivers at pickup time.</p>` : '<div class="empty">No reserved rides. Tap Later on Home to book ahead.</div>'}</section>
+    <section class="stack"><h2>Upcoming</h2>${res.length ? `<div class="menu">${res.map(r => `<div><span><b>${esc(PLACES[r.from].name)} → ${esc(PLACES[r.to].name)}</b><br><span class="small muted">${esc(timeLabel(r.at))} · ${TYPES[r.type].name}</span></span><button class="btn danger sm" data-act="unreserve" data-id="${esc(r.id)}">Cancel</button></div>`).join('')}</div>
+      <p class="small muted">At pickup time we send your ride to Safar X drivers, even if Safar Rides is closed. Open the app to follow your driver.</p>` : '<div class="empty">No reserved rides. Tap Later on Home to book ahead.</div>'}</section>
     <section class="stack"><h2>Past</h2>${done.length ? `<div class="menu">${done.map(x => `<div><span><b>${esc(PLACES[x.to].name)}</b><br><span class="small muted">${ago(x.requestAt)} · ${TYPES[x.type].name}${x.driver ? ' · ' + esc(first(x.driver.name)) : ''}</span></span><span class="mono">${x.status === 'cancelled' ? 'Cancelled' : money(x.fare + (x.tip || 0))}</span></div>`).join('')}</div>` : '<div class="empty">Your trips will show here.</div>'}</section>`;
 }
 function accountView() {
@@ -718,13 +725,23 @@ const ACTIONS = {
   type: d => { prefs.draft.type = d.type; savePrefs(); render(true); },
   pay: d => { prefs.draft.pay = d.pay; savePrefs(); render(true); },
   request: () => { requestRide(prefs.draft); },
-  reserve: () => {
-    const d = prefs.draft, r = { id: 'R' + Date.now().toString(36), from: d.from, to: d.to, type: d.type, pay: d.pay, at: ui.later };
-    prefs.reservations.push(r); savePrefs();
-    toast(APP_NAME, `Reserved: ${TYPES[d.type].name} to ${PLACES[d.to].name}, ${timeLabel(r.at)}.`);
-    ui.later = null; ui.screen = null; ui.tab = 'activity'; render(true); window.scrollTo(0, 0);
+  reserve: async () => {
+    const d = prefs.draft; if (ui.busy || d.from === d.to) return;
+    const trip = buildTrip(d, 'R'), at = ui.later;
+    ui.busy = true; render(true);
+    try {
+      await rpc('safar_reserve', { p_token: Account.token, p_trip: trip, p_pickup_at: at });
+      reservations.push(Object.assign({}, trip, { at }));
+      toast(APP_NAME, `Reserved: ${TYPES[d.type].name} to ${PLACES[d.to].name}, ${timeLabel(at)}.`);
+      ui.later = null; ui.screen = null; ui.tab = 'activity';
+    } catch (e) { toast(APP_NAME, e.message); }
+    ui.busy = false; render(true); window.scrollTo(0, 0); poll();
   },
-  unreserve: d => { prefs.reservations = prefs.reservations.filter(r => r.id !== d.id); savePrefs(); render(true); toast(APP_NAME, 'Reservation cancelled.'); },
+  unreserve: async d => {
+    try { await rpc('safar_cancel_reservation', { p_token: Account.token, p_id: d.id }); reservations = reservations.filter(r => r.id !== d.id); toast(APP_NAME, 'Reservation cancelled.'); }
+    catch (e) { toast(APP_NAME, e.message); }
+    render(true); poll();
+  },
   simNow: d => { ui.simNow.add(d.id); tick(); },
   cancel: d => { patchTrip(d.id, { status: 'cancelled', cancelledAt: Date.now() }); toast(APP_NAME, 'Ride cancelled. You have not been charged.'); },
   star: d => { ui.stars = +d.n; render(true); },
@@ -747,10 +764,6 @@ document.addEventListener('input', e => {
 function tick() {
   if (!Account.token) return;
   const now = Date.now(), t = activeTrip();
-  if (!t && ui.loaded && !ui.busy) {
-    const due = prefs.reservations.find(r => r.at <= now);
-    if (due) { prefs.reservations = prefs.reservations.filter(r => r !== due); savePrefs(); toast(APP_NAME, `Your reserved ride to ${PLACES[due.to].name} is being sent to drivers.`); requestRide(due, true); return; }
-  }
   if (t && !writing.has(t.id)) {
     if (t.status === 'searching' && (now - t.requestAt > SIM_AFTER || ui.simNow.has(t.id))) {
       const s = nearestSim(PLACES[t.from], t.type);
