@@ -181,14 +181,14 @@ const SB_KEY = 'sb_publishable_eMwkhTp9QRaT2s6YM03kHg_ZSG4u3uN';
 const PX_PER_MILE = 40 / 0.7, FEE = 0.25, SIM_AFTER = 22000, REQ_WINDOW = 20000, POLL_MS = 2500;
 const FARE = { base: 2.5, mile: 1.25, min: 0.2, minimum: 5 };
 const PLACES = {
-  home: { name: '14 Elm Street', x: 280, y: 200 }, station: { name: 'Leeds Station', x: 160, y: 120 },
-  trinity: { name: 'Trinity Leeds', x: 200, y: 80 }, uni: { name: 'University of Leeds', x: 120, y: 40 },
-  headingley: { name: 'Headingley Stadium', x: 40, y: 40 }, kirkstall: { name: 'Kirkstall Abbey', x: 40, y: 160 },
-  roundhay: { name: 'Roundhay Park', x: 320, y: 40 }, whiterose: { name: 'White Rose Centre', x: 120, y: 240 }
+  home: { name: '14 Elm Street', area: 'Leeds LS6 2AB', x: 280, y: 200 }, station: { name: 'Leeds Station', area: 'New Station St, Leeds LS1 4DY', x: 160, y: 120 },
+  trinity: { name: 'Trinity Leeds', area: 'Albion St, Leeds LS1 5AT', x: 200, y: 80 }, uni: { name: 'University of Leeds', area: 'Woodhouse Ln, Leeds LS2 9JT', x: 120, y: 40 },
+  headingley: { name: 'Headingley Stadium', area: "St Michael's Ln, Leeds LS6 3BR", x: 40, y: 40 }, kirkstall: { name: 'Kirkstall Abbey', area: 'Abbey Rd, Leeds LS5 3EH', x: 40, y: 160 },
+  roundhay: { name: 'Roundhay Park', area: 'Mansion Ln, Leeds LS8 2HH', x: 320, y: 40 }, whiterose: { name: 'White Rose Centre', area: 'Dewsbury Rd, Leeds LS11 8LU', x: 120, y: 240 }
 };
 const TYPES = {
   go: { name: 'Safar Go', seats: 4, mult: 1, blurb: 'Everyday rides' },
-  green: { name: 'Safar Green', seats: 4, mult: 1.1, blurb: 'Fully electric cars' },
+  green: { name: 'Safar Green', seats: 4, mult: 1.1, blurb: 'Fully electric cars', promo: 0.1 },
   comfort: { name: 'Comfort', seats: 4, mult: 1.35, blurb: 'Newer cars, more legroom' },
   xl: { name: 'Safar XL', seats: 6, mult: 1.65, blurb: 'Groups and luggage' }
 };
@@ -243,7 +243,9 @@ function pointAt(p, t) {
 function fareFor(from, to, type) {
   const miles = len(path(PLACES[from], PLACES[to])) / PX_PER_MILE, mins = Math.round(miles * 3.2 + 3), m = TYPES[type].mult;
   const parts = { base: FARE.base * m, dist: FARE.mile * miles * m, time: FARE.min * mins * m };
-  return { miles, mins, parts, fare: Math.round(Math.max(parts.base + parts.dist + parts.time, FARE.minimum * m) * 100) / 100 };
+  const full = Math.max(parts.base + parts.dist + parts.time, FARE.minimum * m), off = TYPES[type].promo ? full * TYPES[type].promo : 0;
+  if (off) parts.promo = -off;
+  return { miles, mins, parts, full: Math.round(full * 100) / 100, fare: Math.round((full - off) * 100) / 100 };
 }
 const minsBetween = (a, b) => Math.max(1, Math.round(len(path(a, b)) / PX_PER_MILE * 3 + 1));
 const nearestSim = (pt, type) => SIM.filter(d => d.types.includes(type)).sort((a, b) => len(path(a.pos, pt)) - len(path(b.pos, pt)))[0];

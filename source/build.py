@@ -23,14 +23,14 @@ css = open('source/base.css').read(); core = open('source/core.js').read()
 RESET = ':root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;-webkit-tap-highlight-color:transparent}img{max-width:100%}[hidden]{display:none!important}'
 FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">'
 APPS = {
-  'rides': dict(name='Safar Rides', short='Safar Rides', js='source/rides.js', cls='', theme='#2347e0', bg='#eef0f5',
+  'rides': dict(name='Safar Rides', short='Safar Rides', js='source/rides.js', css='source/rides.css', cls='r', theme='#111214', bg='#111214',
      desc='Book a ride across Leeds in seconds.',
      icon='<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 30 30"><rect width="30" height="30" fill="#2347e0"/><path d="M8 19.5 C 11 9, 19 21, 22 10.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><circle cx="22" cy="10.5" r="2.3" fill="#f5b301"/></svg>'),
   'driver': dict(name='Safar X', short='Safar X', js='source/driver.js', cls='x', theme='#0a0c10', bg='#0a0c10',
      desc='The Safar driver app: go online, accept rides and track your earnings.',
      icon='<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 30 30"><rect width="30" height="30" fill="#f5b301"/><path d="M10 10 L20 20 M20 10 L10 20" stroke="#161105" stroke-width="3" stroke-linecap="round"/></svg>'),
 }
-SW = """const C='safar-shell-v1';
+SW = """const C='safar-shell-v2';
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(['./','manifest.webmanifest','icon-192.png'])).catch(()=>{}))});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
@@ -42,9 +42,9 @@ for key, a in APPS.items():
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>{a["name"]}</title><meta name="description" content="{a["desc"]}">
 <meta name="theme-color" content="{a["theme"]}"><link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="{'black' if a['cls'] else 'default'}"><meta name="apple-mobile-web-app-title" content="{a["short"]}">
-{FONTS}<style>{RESET}{css}</style></head>
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="{a["short"]}">
+{FONTS}<style>{RESET}{css}{open(a['css']).read() if a.get('css') else ''}</style></head>
 <body><div id="app"></div><div id="toasts" aria-live="polite"></div>
 <script>{core}
 {open(a["js"]).read()}</script></body></html>'''
@@ -52,12 +52,9 @@ for key, a in APPS.items():
     open(f'{out}/icon.svg', 'w').write(a['icon'])
     open(f'{out}/sw.js', 'w').write(SW)
     big = draw_icon(key)
-    for size, fn in [(512, 'icon-512.png'), (192, 'icon-192.png'), (180, 'apple-touch-icon.png')]:
-        big.resize((size, size), Image.LANCZOS).save(f'{out}/{fn}')
-    json.dump({'name': a['name'], 'short_name': a['short'], 'description': a['desc'], 'start_url': './', 'scope': './', 'display': 'standalone',
+    big.resize((192, 192), Image.LANCZOS).convert('RGB').quantize(colors=64).save(f'{out}/icon-192.png', optimize=True)
+    open(f'{out}/manifest.webmanifest', 'w').write(json.dumps({'name': a['name'], 'short_name': a['short'], 'description': a['desc'], 'start_url': './', 'scope': './', 'display': 'standalone',
                'background_color': a['bg'], 'theme_color': a['theme'], 'orientation': 'portrait',
-               'icons': [{'src': 'icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any maskable'},
-                         {'src': 'icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any maskable'}]},
-              open(f'{out}/manifest.webmanifest', 'w'), indent=1)
+               'icons': [{'src': 'icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'}, {'src': 'icon.svg', 'sizes': 'any', 'type': 'image/svg+xml', 'purpose': 'any'}]}, separators=(',', ':')))
     open(f'{out}/vercel.json', 'w').write(json.dumps({'headers': [{'source': '/sw.js', 'headers': [{'key': 'Cache-Control', 'value': 'no-cache'}]}, {'source': '/(.*)', 'headers': [{'key': 'X-Content-Type-Options', 'value': 'nosniff'}, {'key': 'Referrer-Policy', 'value': 'strict-origin-when-cross-origin'}]}]}))
 print('built'); 
