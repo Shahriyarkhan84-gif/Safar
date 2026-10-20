@@ -8,8 +8,12 @@ const PLACES = {
   home: { name: '14 Elm Street', area: 'Hyde Park, Leeds LS6', lat: 53.8128, lng: -1.5640 }, station: { name: 'Leeds Station', area: 'New Station St, Leeds LS1 4DY', lat: 53.7950, lng: -1.5476 },
   trinity: { name: 'Trinity Leeds', area: 'Albion St, Leeds LS1 5AT', lat: 53.7963, lng: -1.5440 }, uni: { name: 'University of Leeds', area: 'Woodhouse Ln, Leeds LS2 9JT', lat: 53.8067, lng: -1.5550 },
   headingley: { name: 'Headingley Stadium', area: "St Michael's Ln, Leeds LS6 3BR", lat: 53.8170, lng: -1.5820 }, kirkstall: { name: 'Kirkstall Abbey', area: 'Abbey Rd, Leeds LS5 3EH', lat: 53.8203, lng: -1.6066 },
-  roundhay: { name: 'Roundhay Park', area: 'Mansion Ln, Leeds LS8 2HH', lat: 53.8390, lng: -1.4970 }, whiterose: { name: 'White Rose Centre', area: 'Dewsbury Rd, Leeds LS11 8LU', lat: 53.7590, lng: -1.5770 }
+  roundhay: { name: 'Roundhay Park', area: 'Mansion Ln, Leeds LS8 2HH', lat: 53.8390, lng: -1.4970 }, whiterose: { name: 'White Rose Centre', area: 'Dewsbury Rd, Leeds LS11 8LU', lat: 53.7590, lng: -1.5770 },
+  airport: { name: 'Leeds Bradford Airport', area: 'Whitehouse Ln, Yeadon LS19 7TU', lat: 53.8659, lng: -1.6606, airport: true }
 };
+/* fare rules: busy times cost more, airport trips add a fixed fee; fees after the ride are worked out by the server */
+const RULES = { busyMult: 1.25, airportFee: 3, cancelFee: 3, cancelAfterMin: 2, waitFreeMin: 3, waitPerMin: 0.25, waitMax: 5 };
+function busyAt(ts) { const d = new Date(ts), h = d.getHours() + d.getMinutes() / 60, wd = d.getDay(); if (wd >= 1 && wd <= 5 && ((h >= 7.5 && h < 9.5) || (h >= 16.5 && h < 18.5))) return true; if (((wd === 5 || wd === 6) && h >= 22) || ((wd === 6 || wd === 0) && h < 3)) return true; return false; }
 const TYPES = {
   go: { name: 'Safar Go', seats: 4, mult: 1, blurb: 'Everyday rides' },
   green: { name: 'Safar Green', seats: 4, mult: 1.1, blurb: 'Fully electric cars', promo: 0.1 },
@@ -82,13 +86,17 @@ function pointAt(p, t) {
   }
   const e = p[p.length - 1]; return { lat: e.lat, lng: e.lng, a: 0 };
 }
-function fareFor(from, to, type) {
+function fareFor(from, to, type, at = Date.now()) {
   const miles = roadMiles(PLACES[from], PLACES[to]), mins = Math.round(miles * 3.2 + 3), m = TYPES[type].mult;
   const parts = { base: FARE.base * m, dist: FARE.mile * miles * m, time: FARE.min * mins * m };
-  const full = Math.max(parts.base + parts.dist + parts.time, FARE.minimum * m), off = TYPES[type].promo ? full * TYPES[type].promo : 0;
+  let full = Math.max(parts.base + parts.dist + parts.time, FARE.minimum * m);
+  const busy = busyAt(at); if (busy) { parts.busy = full * (RULES.busyMult - 1); full += parts.busy; }
+  if (PLACES[from].airport || PLACES[to].airport) { parts.airport = RULES.airportFee; full += RULES.airportFee; }
+  const off = TYPES[type].promo ? full * TYPES[type].promo : 0;
   if (off) parts.promo = -off;
-  return { miles, mins, parts, full: Math.round(full * 100) / 100, fare: Math.round((full - off) * 100) / 100 };
+  return { miles, mins, parts, busy, full: Math.round(full * 100) / 100, fare: Math.round((full - off) * 100) / 100 };
 }
+const tripTotal = t => (t.fare || 0) + (t.waitFee || 0);
 const minsBetween = (a, b) => Math.max(1, Math.round(roadMiles(a, b) * 3 + 1));
 const nearestSim = (p, type) => SIM.filter(d => d.types.includes(type)).sort((a, b) => hav(a.pos, p) - hav(b.pos, p))[0];
 
@@ -163,6 +171,35 @@ function drawMap(o) {
   else m.setView(pts[0] ? [pts[0].lat, pts[0].lng] : [CITY.lat, CITY.lng], o.zoom || 14, { animate: false });
 }
 function moveCar(id, p) { const mk = MAP.cars[id]; if (!mk) return; mk.setLatLng([p.lat, p.lng]); const el = mk.getElement && mk.getElement(); const c = el && el.querySelector('.mcar'); if (c) c.style.transform = `rotate(${Math.round(p.a || 0)}deg)`; }
+
+/* ---------- live updates: Supabase Realtime pings tell the phone a trip changed, then it fetches it ---------- */
+const Live = { ws: null, topics: [], ref: 0, open: false, last: 0, heard: 0, onPing: null, hb: null,
+  start(topics, onPing) { const k = topics.join(','); if (k === this.topics.join(',') && this.ws) return; this.topics = topics; this.onPing = onPing; this.connect(); },
+  connect() {
+    try { if (this.ws) { this.ws.onclose = null; this.ws.close(); } } catch (e) {}
+    this.open = false; clearInterval(this.hb);
+    if (typeof WebSocket === 'undefined' || !this.topics.length) return;
+    let ws; try { ws = new WebSocket(SB_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SB_KEY + '&vsn=1.0.0'); } catch (e) { return; }
+    this.ws = ws;
+    const send = m => { try { ws.send(JSON.stringify({ ...m, ref: String(++this.ref) })); } catch (e) {} };
+    ws.onopen = () => { for (const t of this.topics) send({ topic: 'realtime:' + t, event: 'phx_join', payload: { config: { broadcast: { self: false }, presence: { key: '' }, private: false } } }); this.hb = setInterval(() => send({ topic: 'phoenix', event: 'heartbeat', payload: {} }), 25000); };
+    ws.onmessage = e => { try { const m = JSON.parse(e.data); if (m.event === 'phx_reply' && m.payload && m.payload.status === 'ok' && m.topic !== 'phoenix') this.open = true; if (m.event === 'broadcast') { this.heard = Date.now(); if (this.onPing) this.onPing(m.payload); } } catch (err) {} };
+    ws.onclose = () => { if (this.ws !== ws) return; this.open = false; clearInterval(this.hb); if (this.topics.length) setTimeout(() => { if (this.ws === ws) this.connect(); }, 4000); };
+  },
+  stop() { this.topics = []; try { if (this.ws) this.ws.close(); } catch (e) {} this.open = false; }
+};
+/* with live updates on, only check the server every 15 s as a safety net; otherwise every 2.5 s */
+/* live updates only count as working once one has actually arrived in the last 10 minutes */
+const pollDue = () => !Live.open || !Live.heard || Date.now() - Live.heard > 600000 || Date.now() - Live.last > 15000;
+
+/* ---------- error log: crashes are saved to the client_errors table in Supabase ---------- */
+let errCount = 0;
+function logError(message, detail) {
+  if (errCount++ > 10 || typeof fetch !== 'function') return;
+  rpc('safar_log_error', { p_app: Account.app || 'rides', p_message: String(message || 'Unknown error'), p_detail: detail ? String(detail) : null, p_url: location.pathname, p_agent: navigator.userAgent }).catch(() => {});
+}
+window.addEventListener('error', e => logError(e.message, (e.error && e.error.stack) || `${e.filename}:${e.lineno}`));
+window.addEventListener('unhandledrejection', e => { const r = e.reason || {}; if (r.kind === 'rule' || r.kind === 'session' || r.kind === 'network') return; logError(r.message || r, r.stack); });
 
 /* ---------- account: log in and sign up (shared by both apps) ---------- */
 const Account = {
@@ -247,7 +284,7 @@ const AuthActions = {
     authUI.busy = false; render(true);
   },
   logout: async () => {
-    const t = Account.token; Account.clear(); authUI.step = 'start'; authUI.draft.password = ''; render(true); window.scrollTo(0, 0);
+    const t = Account.token; Account.clear(); Live.stop(); authUI.step = 'start'; authUI.draft.password = ''; render(true); window.scrollTo(0, 0);
     if (t) rpc('safar_logout', { p_token: t }).catch(() => {});
   }
 };

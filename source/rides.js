@@ -5,7 +5,9 @@ const prefs = Object.assign({ draft: { from: 'home', to: 'station', type: 'go', 
 delete prefs.reservations;
 let reservations = [];
 const savePrefs = () => LS.set('safar-rides-prefs', prefs);
-const ui = { tab: 'home', screen: null, later: null, laterOpen: false, stars: 0, tip: 0, simNow: new Set(), busy: false, loaded: false };
+const SHARE = new URLSearchParams(location.search).get('trip');
+let shared = null, shareErr = '';
+const ui = { sos: false, cancelAsk: null, del: false, delErr: '', tab: 'home', screen: null, later: null, laterOpen: false, stars: 0, tip: 0, simNow: new Set(), busy: false, loaded: false };
 let trips = [];
 const writing = new Set();
 const arrivedSeen = new Set();
@@ -50,6 +52,7 @@ function activeTrip() {
 /* ---------- server sync ---------- */
 async function poll() {
   if (!Account.token || document.hidden) return;
+  Live.last = Date.now();
   try {
     const [list, res] = await Promise.all([rpc('safar_my_trips', { p_token: Account.token }), rpc('safar_my_reservations', { p_token: Account.token }).catch(() => reservations)]);
     reservations = res || [];
@@ -57,6 +60,7 @@ async function poll() {
     if (ui.loaded) for (const t of list) if (!old[t.id] && t.reserved && t.status === 'searching') toast(APP_NAME, `Your reserved ride to ${PLACES[t.to].name} is now finding a driver.`);
     trips = list.map(t => writing.has(t.id) && old[t.id] ? old[t.id] : t);
     ui.loaded = true; notifyChanges(old); render();
+    if (Account.me && Account.me.id) Live.start(['safar-u-' + Account.me.id], () => poll());
   } catch (e) { if (e.kind === 'session') { Account.clear(); toast(APP_NAME, e.message); render(true); } }
 }
 async function patchTrip(id, patch, quiet) {
@@ -73,8 +77,8 @@ function notifyChanges(old) {
     if (o.status === 'accepted' && t.status === 'ontrip') toast(APP_NAME, `Trip started. About ${t.mins} min to ${PLACES[t.to].name}.`);
   }
 }
-function buildTrip(d, prefix) {
-  const f = fareFor(d.from, d.to, d.type), now = Date.now();
+function buildTrip(d, prefix, at) {
+  const f = fareFor(d.from, d.to, d.type, at || Date.now()), now = Date.now();
   return { id: prefix + now.toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(), from: d.from, to: d.to, type: d.type, pay: d.pay,
     miles: f.miles, mins: f.mins, fare: f.fare, parts: f.parts, pin: String(Math.floor(1000 + Math.random() * 9000)), requestAt: now, rated: false, tip: 0 };
 }
@@ -93,6 +97,7 @@ const hm = ts => new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', min
 const stop = (cls, small, big, side = '') => `<div class="rstop ${cls}"><i></i><span>${small ? `<small>${small}</small>` : ''}<b>${big}</b></span>${side}</div>`;
 const simCars = () => SIM.map(s => ({ ...s.pos, a: -30 }));
 function view() {
+  if (SHARE) return shareView();
   if (!Account.token) return authView({ app: 'rides', logo: LOGO_R, headline: 'Sign in to get a ride', signupTitle: 'Create your account', signupNote: 'Your driver sees your first name when they pick you up.', namePh: 'Sara Hussain', termsText: 'I agree to the Safar Rides terms and privacy policy',
     fine: 'By continuing you agree to the Safar Rides terms and privacy policy. Drivers never see your phone number or email.', other: 'Want to drive? Get the <b>Safar X</b> driver app.' });
   if (!ui.loaded) return `<main class="wrap"><div class="empty">Loading your rides…</div></main>`;
@@ -139,12 +144,13 @@ function whereView() {
     <p class="empty" id="noresults" hidden>No places in Leeds match that yet.</p></main>`;
 }
 function optionsView() {
-  const d = prefs.draft, A = PLACES[d.from], f = fareFor(d.from, d.to, d.type);
+  const d = prefs.draft, A = PLACES[d.from], at = ui.later || Date.now(), f = fareFor(d.from, d.to, d.type, at);
   return `<main class="wrap flush">
     <div class="screenhead"><button class="back" data-act="openWhere" aria-label="Back">${I.back}</button><div class="stack tight" style="min-width:0"><h2>${esc(PLACES[d.to].name)}</h2><span class="small muted">From ${esc(A.name)} · ${f.miles.toFixed(1)} mi · about ${f.mins} min${ui.later ? ' · pickup ' + esc(timeLabel(ui.later)) : ''}</span></div></div>
     ${mapSlot({ from: d.from, to: d.to, cars: simCars() })}
+    ${f.busy || f.parts.airport ? `<p class="small muted">${f.busy ? 'Busy time: prices are 25% higher. ' : ''}${f.parts.airport ? `Airport trips include a ${money(RULES.airportFee)} airport fee.` : ''}</p>` : ''}
     <section class="stack">
-      <div class="rides" role="group" aria-label="Ride type">${Object.entries(TYPES).map(([k, ty]) => { const fx = fareFor(d.from, d.to, k), car = nearestSim(A, k); return `<button class="ride" data-act="type" data-type="${k}" aria-pressed="${d.type === k}">${art(k)}<div><h3>${ty.name}</h3><p class="small muted">${ui.later ? ty.blurb : minsBetween(car.pos, A) + ' min away'} · ${ty.seats} seats${ty.promo ? ' · 10% off' : ''}</p></div><span class="fare">${money(fx.fare)}${ty.promo ? `<span class="strike">${money(fx.full)}</span>` : ''}</span></button>`; }).join('')}</div>
+      <div class="rides" role="group" aria-label="Ride type">${Object.entries(TYPES).map(([k, ty]) => { const fx = fareFor(d.from, d.to, k, at), car = nearestSim(A, k); return `<button class="ride" data-act="type" data-type="${k}" aria-pressed="${d.type === k}">${art(k)}<div><h3>${ty.name}</h3><p class="small muted">${ui.later ? ty.blurb : minsBetween(car.pos, A) + ' min away'} · ${ty.seats} seats${ty.promo ? ' · 10% off' : ''}</p></div><span class="fare">${money(fx.fare)}${ty.promo ? `<span class="strike">${money(fx.full)}</span>` : ''}</span></button>`; }).join('')}</div>
       <div class="spread"><span class="small muted">Payment</span><div class="seg" role="group" aria-label="Payment"><button data-act="pay" data-pay="card" aria-pressed="${d.pay === 'card'}">Card</button><button data-act="pay" data-pay="cash" aria-pressed="${d.pay === 'cash'}">Cash</button></div></div>
       <button class="btn block authgo" data-act="${ui.later ? 'reserve' : 'request'}" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Requesting…' : ui.later ? `Book ${TYPES[d.type].name} for ${esc(timeLabel(ui.later))}` : `Confirm ${TYPES[d.type].name} · ${money(f.fare)}`}</button>
     </section></main>`;
@@ -159,7 +165,7 @@ function activityView() {
   return `<h1>Activity</h1>
     <section class="stack tight"><h2>Upcoming</h2>${res.length ? `<div class="menu">${res.map(r => `<div><span><b>${esc(PLACES[r.to].name)}</b><br><span class="small muted">${esc(timeLabel(r.at))} · from ${esc(PLACES[r.from].name)} · ${TYPES[r.type].name}</span></span><button class="btn line sm" data-act="unreserve" data-id="${esc(r.id)}">Cancel</button></div>`).join('')}</div>
       <p class="small muted">We send booked rides to drivers at the pickup time, even if the app is closed.</p>` : '<p class="muted">No booked rides.</p>'}</section>
-    <section class="stack tight"><h2>Past</h2>${done.length ? `<div class="menu">${done.map(x => `<div><span><b>${esc(PLACES[x.to].name)}</b><br><span class="small muted">${ago(x.requestAt)} · ${TYPES[x.type].name}${x.driver ? ' · ' + esc(first(x.driver.name)) : ''}</span></span><span>${x.status === 'cancelled' ? '<span class="muted">Cancelled</span>' : money(x.fare + (x.tip || 0))}</span></div>`).join('')}</div>` : '<p class="muted">Your trips will show here.</p>'}</section>`;
+    <section class="stack tight"><h2>Past</h2>${done.length ? `<div class="menu">${done.map(x => `<div><span><b>${esc(PLACES[x.to].name)}</b><br><span class="small muted">${ago(x.requestAt)} · ${TYPES[x.type].name}${x.driver ? ' · ' + esc(first(x.driver.name)) : ''}</span></span><span>${x.status === 'cancelled' ? (x.cancelFee ? `<span class="muted">Cancelled · ${money(x.cancelFee)} fee</span>` : '<span class="muted">Cancelled</span>') : money(tripTotal(x) + (x.tip || 0))}</span></div>`).join('')}</div>` : '<p class="muted">Your trips will show here.</p>'}</section>`;
 }
 function accountView() {
   const me = Account.me || {};
@@ -167,7 +173,8 @@ function accountView() {
     <div class="menu"><div><span class="muted">Email</span><span>${esc(me.email || '')}</span></div><div><span class="muted">Mobile</span><span>${me.phone ? showPhone(me.phone) : ''}</span></div>
       <div><span class="muted">Pay with</span><div class="seg" role="group" aria-label="Default payment"><button data-act="pay" data-pay="card" aria-pressed="${prefs.draft.pay === 'card'}">Card</button><button data-act="pay" data-pay="cash" aria-pressed="${prefs.draft.pay === 'cash'}">Cash</button></div></div></div>
     <p class="small muted">Want to drive with Safar? Get the <b>Safar X</b> driver app.</p>
-    <button class="btn line" data-act="logout">Log out</button>`;
+    <button class="btn line" data-act="logout">Log out</button>
+    ${deleteBox()}`;
 }
 function tripMap(t) {
   const ph = phase(t);
@@ -193,11 +200,12 @@ function tripSheet(t) {
       <div class="prog"><i data-prog="${t.id}" style="width:${(progress(t) * 100).toFixed(1)}%"></i></div>
       ${driverCard(t)}
       <div class="ticket"><div class="stub"><div class="stack tight"><b>Your PIN</b><span class="small muted">Tell ${esc(first(t.driver.name))} before you get in</span></div><div class="pinstub pin">${String(t.pin).split('').map(c => `<span>${c}</span>`).join('')}</div></div></div>
-      <button class="textbtn danger" data-act="cancel" data-id="${t.id}">Cancel ride</button></section>`;
+      ${ph === 'arrived' ? `<p class="small muted">Free waiting: ${RULES.waitFreeMin} minutes, then ${Math.round(RULES.waitPerMin * 100)}p a minute.</p>` : ''}
+      ${safetyRow(t)}${cancelBox(t)}</section>`;
   if (ph === 'ontrip') return `<section class="panel">
       <div class="spread"><h2 class="status" data-eta="${t.id}">${etaText(t)}</h2><span class="pill">On trip</span></div>
       <div class="prog"><i data-prog="${t.id}" style="width:${(progress(t) * 100).toFixed(1)}%"></i></div>
-      ${driverCard(t)}<p class="small muted">Paying by ${t.pay === 'card' ? 'card' : 'cash'}</p></section>`;
+      ${driverCard(t)}<p class="small muted">Paying by ${t.pay === 'card' ? 'card' : 'cash'}</p>${safetyRow(t)}</section>`;
   const d = t.driver, arrive = t.startedAt && t.tripDur ? t.startedAt + t.tripDur : t.completedAt || Date.now();
   return `<section class="ticket">
       <div class="stack tight"><span class="label">Trip receipt</span><h1>${esc(PLACES[t.to].name)}</h1></div>
@@ -207,9 +215,12 @@ function tripSheet(t) {
         <div class="sumrow small"><span>Base fare</span><span>${money(t.parts.base)}</span></div>
         <div class="sumrow small"><span>Distance · ${t.miles.toFixed(1)} mi</span><span>${money(t.parts.dist)}</span></div>
         <div class="sumrow small"><span>Time · ${t.mins} min</span><span>${money(t.parts.time)}</span></div>
+        ${t.parts.busy ? `<div class="sumrow small"><span>Busy time (×${RULES.busyMult})</span><span>${money(t.parts.busy)}</span></div>` : ''}
+        ${t.parts.airport ? `<div class="sumrow small"><span>Airport fee</span><span>${money(t.parts.airport)}</span></div>` : ''}
         ${t.parts.promo ? `<div class="sumrow small"><span>Safar Green 10% off</span><span>−${money(-t.parts.promo)}</span></div>` : ''}
+        ${t.waitFee ? `<div class="sumrow small"><span>Waiting time</span><span>${money(t.waitFee)}</span></div>` : ''}
         ${ui.tip ? `<div class="sumrow small"><span>Tip for ${esc(first(d.name))}</span><span>${money(ui.tip)}</span></div>` : ''}
-        <div class="sumrow total"><span>${t.pay === 'card' ? 'Total by card' : 'Pay in cash'}</span><span>${money(t.fare + ui.tip)}</span></div>
+        <div class="sumrow total"><span>${t.pay === 'card' ? 'Total by card' : 'Pay in cash'}</span><span>${money(tripTotal(t) + ui.tip)}</span></div>
       </div></section>
     <section class="panel">
       <h2 class="center">How was your ride with ${esc(first(d.name))}?</h2>
@@ -217,7 +228,39 @@ function tripSheet(t) {
       <div class="tips" role="group" aria-label="Add a tip">${[0, 1, 2, 3].map(n => `<button data-act="tip" data-n="${n}" aria-pressed="${ui.tip === n}">${n ? '£' + n : 'No tip'}</button>`).join('')}</div>
       <button class="btn block authgo" data-act="finish" data-id="${t.id}">${ui.stars ? 'Submit' : 'Skip'}</button></section>`;
 }
-function viewKey() { const t = Account.token && activeTrip(); return (Account.token ? 'in' : 'out') + (t ? t.id + phase(t) : '') + (ui.loaded ? 'L' : ''); }
+function safetyRow(t) {
+  return `<div class="row"><button class="btn line sm" data-act="share" data-id="${t.id}">Share trip</button><button class="btn line sm" data-act="sos">Emergency</button></div>
+    ${ui.sos ? `<div class="ticket"><b>Need help now?</b><p class="small muted">Call the police or an ambulance, or send your live trip to someone you trust.</p>
+      <a class="btn danger block" href="tel:999">Call 999</a><button class="btn line" data-act="share" data-id="${t.id}">Share my live trip</button><button class="textbtn" data-act="sos">Close</button></div>` : ''}`;
+}
+const feeDue = t => t.status === 'accepted' && t.driver && !t.driver.sim && Date.now() - t.acceptedAt > RULES.cancelAfterMin * 60000;
+function cancelBox(t) {
+  if (ui.cancelAsk !== t.id) return `<button class="textbtn danger" data-act="cancel" data-id="${t.id}">Cancel ride</button>`;
+  return `<div class="ticket"><b>Cancel this ride?</b><p class="small muted">Your driver has been on the way for more than ${RULES.cancelAfterMin} minutes, so a ${money(RULES.cancelFee)} cancellation fee applies.</p>
+    <button class="btn danger" data-act="cancel" data-id="${t.id}" data-sure="1">Yes, cancel (${money(RULES.cancelFee)})</button><button class="textbtn" data-act="keepRide">Keep my ride</button></div>`;
+}
+function deleteBox() {
+  if (!ui.del) return '<button class="textbtn danger" data-act="delAsk">Delete my account</button>';
+  return `<div class="ticket"><b>Delete your account?</b><p class="small muted">Your name, email and phone number are removed and you're logged out. Past trips stay in our records without your details. This can't be undone.</p>
+    <label class="field"><span>Enter your password to confirm</span><input id="del-pw" type="password" autocomplete="current-password"></label>
+    ${ui.delErr ? `<p class="err" role="alert">${esc(ui.delErr)}</p>` : ''}
+    <button class="btn danger" data-act="delConfirm" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Deleting…' : 'Delete my account'}</button><button class="textbtn" data-act="delAsk">Keep my account</button></div>`;
+}
+/* the page family and friends see when you share a trip */
+function shareView() {
+  if (shareErr) return `<main class="wrap"><span class="brandmini">${LOGO_R}Safar Rides</span><h1>Trip link</h1><p class="muted">${esc(shareErr)}</p></main>`;
+  if (!shared) return `<main class="wrap"><div class="empty">Loading trip…</div></main>`;
+  const t = shared, ph = phase(t), d = t.driver;
+  const line = ph === 'searching' ? `${esc(t.riderName || 'Your friend')} is waiting for a driver` : ph === 'arriving' ? `Driver on the way · ${etaText(t)}` : ph === 'arrived' ? 'Driver has arrived at pickup' : ph === 'ontrip' ? `On the way · ${etaText(t)}` : ph === 'cancelled' ? 'This trip was cancelled' : `Arrived at ${esc(PLACES[t.to].name)}`;
+  return `<main class="wrap flush"><span class="brandmini">${LOGO_R}Safar Rides</span>
+    ${ph === 'arriving' || ph === 'arrived' || ph === 'ontrip' ? mapSlot({ from: t.from, to: t.to, mine: { ...carPos(t), id: t.id } }) : mapSlot({ from: t.from, to: t.to })}
+    <section class="panel"><span class="label">${esc(t.riderName || 'Your friend')}'s trip</span><h2 class="status" data-eta="${t.id}">${line}</h2>
+      <div class="ribbon"><div class="rstop start"><i></i><span><small>From</small><b>${esc(PLACES[t.from].name)}</b></span></div><div class="rstop end"><i></i><span><small>To</small><b>${esc(PLACES[t.to].name)}</b></span></div></div>
+      ${d ? `<div class="menu"><div><span class="muted">Driver</span><span>${esc(d.name)}</span></div><div><span class="muted">Car</span><span>${esc(d.colour)} ${esc(d.car)}</span></div><div><span class="muted">Number plate</span><span class="plate">${esc(d.plate)}</span></div></div>` : ''}
+      <p class="small muted">Shared from Safar Rides. This page updates by itself and stops working 12 hours after the trip.</p></section></main>`;
+}
+async function pollShare() { if (document.hidden) return; try { shared = await rpc('safar_shared_trip', { p_share: SHARE }); shareErr = ''; } catch (e) { shareErr = e.kind === 'rule' ? e.message : 'This trip link is not working right now.'; } render(); }
+function viewKey() { if (SHARE) return 'share' + (shared ? shared.id + phase(shared) : shareErr ? 'err' : ''); const t = Account.token && activeTrip(); return (Account.token ? 'in' : 'out') + (t ? t.id + phase(t) : '') + (ui.loaded ? 'L' : ''); }
 
 /* ---------- actions ---------- */
 const ACTIONS = {
@@ -233,7 +276,7 @@ const ACTIONS = {
   request: () => { requestRide(prefs.draft); },
   reserve: async () => {
     const d = prefs.draft; if (ui.busy || d.from === d.to) return;
-    const trip = buildTrip(d, 'R'), at = ui.later;
+    const at = ui.later, trip = buildTrip(d, 'R', at);
     ui.busy = true; render(true);
     try {
       await rpc('safar_reserve', { p_token: Account.token, p_trip: trip, p_pickup_at: at });
@@ -249,7 +292,33 @@ const ACTIONS = {
     render(true); poll();
   },
   simNow: d => { ui.simNow.add(d.id); tick(); },
-  cancel: d => { patchTrip(d.id, { status: 'cancelled', cancelledAt: Date.now() }); toast(APP_NAME, 'Ride cancelled. You have not been charged.'); },
+  cancel: d => {
+    const t = trips.find(x => x.id === d.id); if (!t) return;
+    if (feeDue(t) && !d.sure) { ui.cancelAsk = t.id; render(true); return; }
+    const fee = feeDue(t); ui.cancelAsk = null; ui.sos = false;
+    patchTrip(d.id, { status: 'cancelled', cancelledAt: Date.now() });
+    toast(APP_NAME, fee ? `Ride cancelled. A ${money(RULES.cancelFee)} cancellation fee applies.` : 'Ride cancelled. You have not been charged.');
+  },
+  keepRide: () => { ui.cancelAsk = null; render(true); },
+  sos: () => { ui.sos = !ui.sos; render(true); },
+  share: async d => {
+    try {
+      const r = await rpc('safar_share_trip', { p_token: Account.token, p_id: d.id });
+      const url = location.origin + location.pathname + '?trip=' + r.share;
+      if (navigator.share) { await navigator.share({ title: 'My Safar trip', text: 'Follow my Safar ride live:', url }).catch(() => {}); }
+      else if (navigator.clipboard) { await navigator.clipboard.writeText(url); toast(APP_NAME, 'Trip link copied. Paste it into a message.'); }
+      else toast(APP_NAME, url);
+    } catch (e) { toast(APP_NAME, e.kind === 'setup' ? 'Trip sharing is still being set up.' : e.message); }
+  },
+  delAsk: () => { ui.del = !ui.del; ui.delErr = ''; render(true); },
+  delConfirm: async () => {
+    const pw = (document.getElementById('del-pw') || {}).value || '';
+    if (!pw) { ui.delErr = 'Enter your password.'; render(true); return; }
+    ui.busy = true; ui.delErr = ''; render(true);
+    try { await rpc('safar_delete_account', { p_token: Account.token, p_app: 'rides', p_password: pw }); Account.clear(); Live.stop(); ui.del = false; toast(APP_NAME, 'Your account has been deleted.'); }
+    catch (e) { ui.delErr = e.kind === 'setup' ? 'Account deletion is still being set up.' : e.message; }
+    ui.busy = false; render(true);
+  },
   star: d => { ui.stars = +d.n; render(true); },
   tip: d => { ui.tip = +d.n; render(true); },
   finish: d => {
@@ -268,6 +337,7 @@ document.addEventListener('input', e => {
 
 /* ---------- clock ---------- */
 function tick() {
+  if (SHARE) { if (shared && viewKey() === lastKey) { const st = phase(shared); if (st === 'arriving' || st === 'ontrip') { moveCar(shared.id, carPos(shared)); document.querySelectorAll(`[data-eta="${shared.id}"]`).forEach(x => x.textContent = (st === 'arriving' ? 'Driver on the way · ' : 'On the way · ') + etaText(shared)); } } else if (viewKey() !== lastKey) render(); return; }
   if (!Account.token) return;
   const now = Date.now(), t = activeTrip();
   if (t && !writing.has(t.id)) {
@@ -291,7 +361,8 @@ function tick() {
 }
 function onLoggedIn() { ui.loaded = false; ui.tab = 'home'; ui.screen = null; trips = []; poll(); }
 setInterval(tick, 250);
-setInterval(poll, POLL_MS);
+setInterval(() => { if (pollDue()) poll(); }, POLL_MS);
+if (SHARE) { pollShare(); setInterval(pollShare, 5000); }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 render(true);
 if (Account.token) { Account.refresh(); poll(); }

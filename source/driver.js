@@ -4,7 +4,7 @@ Account.init('driver');
 const prefs = Object.assign({ online: true, pos: { ...CITY } }, LS.get('safar-driver-prefs', {}));
 if (!prefs.pos || prefs.pos.lat == null) prefs.pos = { ...CITY };
 const savePrefs = () => LS.set('safar-driver-prefs', prefs);
-const ui = { tab: 'drive', declined: new Set(), editCar: false, formErr: '', formDraft: null, pinErr: '', busy: '', loaded: false };
+const ui = { rateTrip: null, del: false, delErr: '', tab: 'drive', declined: new Set(), editCar: false, formErr: '', formDraft: null, pinErr: '', busy: '', loaded: false };
 let feed = { requests: [], trips: [] };
 const writing = new Set();
 
@@ -19,12 +19,14 @@ function openRequests() {
 /* ---------- server sync ---------- */
 async function poll() {
   if (!Account.token || document.hidden || !vehicle()) return;
+  Live.last = Date.now();
   try {
     const next = await rpc('safar_driver_feed', { p_token: Account.token, p_online: !!prefs.online });
     const oldTrips = Object.fromEntries(feed.trips.map(t => [t.id, t])), oldReq = new Set(feed.requests.map(t => t.id));
     next.trips = next.trips.map(t => writing.has(t.id) && oldTrips[t.id] ? oldTrips[t.id] : t);
     feed = next; ui.loaded = true;
     notifyChanges(oldTrips, oldReq); render();
+    if (Account.me && Account.me.id) Live.start(['safar-u-' + Account.me.id, ...(prefs.online ? ['safar-drivers'] : [])], () => poll());
   } catch (e) { if (e.kind === 'session') { Account.clear(); toast(APP_NAME, e.message); render(true); } }
 }
 async function patchTrip(id, patch) {
@@ -52,10 +54,10 @@ const DI = {
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
   cash: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/></svg>'
 };
-const net = t => t.fare * (1 - FEE) + (t.tip || 0);
+const net = t => t.status === 'cancelled' ? (t.cancelFee || 0) * (1 - FEE) : tripTotal(t) * (1 - FEE) + (t.tip || 0);
 const dstop = (cls, small, big, side = '') => `<div class="rstop ${cls}"><i></i><span>${small ? `<small>${small}</small>` : ''}<b>${big}</b></span>${side}</div>`;
 const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
-function completed() { return feed.trips.filter(t => t.status === 'completed').sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0)); }
+function completed() { return feed.trips.filter(t => t.status === 'completed' || (t.status === 'cancelled' && t.cancelFee > 0)).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0)); }
 function view() {
   if (!Account.token) return authView({ app: 'driver', logo: LOGO_X, headline: 'Sign in to drive', steps: true, signupTitle: 'Create your driver account', signupNote: 'Next you add your car. Riders see your first name and number plate.', namePh: 'Bilal Ahmed', termsText: 'I agree to the Safar X terms and privacy policy, and confirm I am 21 or over',
     fine: 'By continuing you agree to the Safar X terms and privacy policy. You need a private hire licence to drive.', other: 'Need a ride? Get the <b>Safar Rides</b> app.' });
@@ -73,13 +75,14 @@ function driveView() {
   const v = vehicle(), job = myJob(), reqs = openRequests();
   if (!ui.loaded) return '<div class="empty">Connecting to Safar…</div>';
   if (job) return jobView(job);
+  if (ui.rateTrip) return rateView();
   if (reqs.length) {
     const t = reqs[0], A = PLACES[t.from], left = Math.max(0, Math.ceil((t.requestAt + REQ_WINDOW - Date.now()) / 1000));
     return mapSlot({ from: t.from, to: t.to, approach: prefs.pos, mine: { ...prefs.pos, a: 0 } }) + `<section class="panel" aria-label="New ride request">
       <div class="spread"><div class="stack tight"><span class="label">${esc(TYPES[t.type].name)} · ${t.pay === 'cash' ? 'cash' : 'card'}</span><h1>${money(net(t))}</h1><span class="small muted">Your earnings after the 25% fee</span></div>
         ${ring(left / (REQ_WINDOW / 1000), 64, { w: 7, attr: `data-ring="${t.id}"`, inner: `<b style="font-size:1.25rem" data-count="${t.id}">${left}</b>` })}</div>
       <div class="ribbon">${dstop('start', `${minsBetween(prefs.pos, A)} min away`, esc(A.name))}${dstop('end', `${t.miles.toFixed(1)} mi trip`, esc(PLACES[t.to].name))}</div>
-      <p class="small muted">Rider: ${esc(t.riderName || 'Rider')}</p>
+      <p class="small muted">Rider: ${esc(t.riderName || 'Rider')} · ${t.riderStars ? '★ ' + Number(t.riderStars).toFixed(1) : 'new rider'}</p>
       <div class="swipe"><span>${ui.busy === t.id ? 'Accepting…' : 'Swipe to accept'}</span><input type="range" min="0" max="100" value="${ui.busy === t.id ? 100 : 0}" data-swipe="${t.id}" aria-label="Swipe to accept this ride" ${ui.busy ? 'disabled' : ''}></div>
       <button class="textbtn" data-act="decline" data-id="${t.id}">Decline</button></section>`;
   }
@@ -97,7 +100,7 @@ function earningsView() {
   const week = per.reduce((a, b) => a + b, 0), max = Math.max(...per, 1);
   return `<div class="stack tight"><span class="label">Last 7 days</span><h1>${money(week)}</h1><span class="small muted">${done.length} trip${done.length === 1 ? '' : 's'} in total · ${money(tips)} in tips</span></div>
     <div class="bars" role="img" aria-label="Earnings for the last 7 days">${days.map((d, i) => `<div><em>${per[i] ? '£' + Math.round(per[i]) : ''}</em><i class="${i === 6 ? 'on' : ''}" style="height:${Math.max(2, per[i] / max * 100).toFixed(0)}%"></i><small>${d.toLocaleDateString('en-GB', { weekday: 'short' })}</small></div>`).join('')}</div>
-    <section class="stack tight"><h2>Trips</h2>${done.length ? `<div class="menu">${done.slice(0, 10).map(t => `<div><span>${esc(PLACES[t.from].name)} → ${esc(PLACES[t.to].name)}<br><span class="small muted">${esc(t.riderName || 'Rider')} · ${ago(t.completedAt || t.requestAt)}${t.rating ? ' · ★ ' + t.rating : ''}${t.tip ? ' · ' + money(t.tip) + ' tip' : ''}</span></span><span>${money(net(t))}</span></div>`).join('')}</div>` : '<p class="muted">Finish a trip and your earnings show here.</p>'}</section>
+    <section class="stack tight"><h2>Trips</h2>${done.length ? `<div class="menu">${done.slice(0, 10).map(t => `<div><span>${esc(PLACES[t.from].name)} → ${esc(PLACES[t.to].name)}<br><span class="small muted">${esc(t.riderName || 'Rider')} · ${ago(t.completedAt || t.requestAt)}${t.status === 'cancelled' ? ' · rider cancelled, fee' : ''}${t.rating ? ' · ★ ' + t.rating : ''}${t.tip ? ' · ' + money(t.tip) + ' tip' : ''}${t.waitFee ? ' · ' + money(t.waitFee) + ' waiting' : ''}</span></span><span>${money(net(t))}</span></div>`).join('')}</div>` : '<p class="muted">Finish a trip and your earnings show here.</p>'}</section>
     <p class="small muted">All-time: ${money(all)} after the 25% Safar fee.</p>`;
 }
 function youView() {
@@ -105,7 +108,8 @@ function youView() {
   return `<div class="drv" style="grid-template-columns:60px 1fr"><div class="avatar" style="width:60px;height:60px;font-size:1.2rem">${esc(initials(me.name))}</div><div class="stack tight"><h1>${esc(me.name || '')}</h1><span class="small muted">Safar X driver</span></div></div>
     <div class="menu"><div><span class="muted">Car</span><span>${esc(v.colour)} ${esc(v.car)}</span></div><div><span class="muted">Number plate</span><span class="plate">${esc(v.plate)}</span></div><div><span class="muted">Ride types</span><span>${v.types.map(k => TYPES[k].name).join(', ')}</span></div>
       <div><span class="muted">Email</span><span>${esc(me.email || '')}</span></div><div><span class="muted">Mobile</span><span>${me.phone ? showPhone(me.phone) : ''}</span></div></div>
-    <div class="row"><button class="btn ghost" data-act="editCar">Edit car details</button><button class="btn line" data-act="logout">Log out</button></div>`;
+    <div class="row"><button class="btn ghost" data-act="editCar">Edit car details</button><button class="btn line" data-act="logout">Log out</button></div>
+    ${deleteBox()}`;
 }
 function jobView(job) {
   const ph = phase(job), A = PLACES[job.from], B = PLACES[job.to];
@@ -114,18 +118,33 @@ function jobView(job) {
   if (ph === 'arriving') return map + `<section class="panel"><div class="spread"><h2 class="status" data-eta="${job.id}">${etaText(job)}</h2><span class="pill">To pickup</span></div>
       <div class="prog"><i data-prog="${job.id}" style="width:${(progress(job) * 100).toFixed(1)}%"></i></div>
       <p>Pick up at <b>${esc(A.name)}</b></p>${rider}
-      <button class="btn line sm" data-act="skipPickup" data-id="${job.id}">Testing: arrive now</button></section>`;
+      <button class="btn line sm" data-act="skipPickup" data-id="${job.id}">Testing: arrive now</button><a class="textbtn danger" href="tel:999">Emergency: call 999</a></section>`;
   if (ph === 'arrived') return map + `<section class="panel"><h2 class="status">You're at ${esc(A.name)}</h2>${rider}
       <label class="field"><span>Ask the rider for their 4-digit PIN</span><input id="pin" class="pininput" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••"></label>
       ${ui.pinErr ? `<p class="err" role="alert">${esc(ui.pinErr)}</p>` : '<p class="small muted">The trip only starts when the PIN matches.</p>'}
+      <p class="small muted">Waiting is free for ${RULES.waitFreeMin} minutes, then the rider pays ${Math.round(RULES.waitPerMin * 100)}p a minute (up to ${money(RULES.waitMax)}).</p>
       <button class="btn block authgo" data-act="start" data-id="${job.id}" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Checking…' : 'Start trip'}</button></section>`;
   if (ph === 'ontrip') return map + `<section class="panel"><div class="spread"><h2 class="status" data-eta="${job.id}">${etaText(job)}</h2><span class="pill">On trip</span></div>
       <div class="prog"><i data-prog="${job.id}" style="width:${(progress(job) * 100).toFixed(1)}%"></i></div>
       <p>Drop off at <b>${esc(B.name)}</b> · ${job.pay === 'cash' ? `collect <b>${money(job.fare)}</b> in cash` : 'paid by card'}</p>${rider}
-      <button class="btn line sm" data-act="skipTrip" data-id="${job.id}">Testing: arrive now</button></section>`;
+      <button class="btn line sm" data-act="skipTrip" data-id="${job.id}">Testing: arrive now</button><a class="textbtn danger" href="tel:999">Emergency: call 999</a></section>`;
   return map + `<section class="panel"><h2 class="status">You've arrived at ${esc(B.name)}</h2>${rider}
       ${job.pay === 'cash' ? `<div class="note">${DI.cash}<span>Collect <b>${money(job.fare)}</b> in cash before the rider leaves.</span></div>` : ''}
       <button class="btn block authgo" data-act="complete" data-id="${job.id}">Complete trip</button></section>`;
+}
+function rateView() {
+  const t = feed.trips.find(x => x.id === ui.rateTrip); if (!t) { ui.rateTrip = null; return driveView(); }
+  return `<section class="panel"><span class="label">Trip complete · ${money(net(t))}</span><h2 class="status">How was ${esc(t.riderName || 'your rider')}?</h2>
+    <p class="small muted">Riders don't see who rated them. Low ratings help us keep drivers safe.</p>
+    <div class="stars" role="group" aria-label="Rate your rider">${[1, 2, 3, 4, 5].map(n => `<button data-act="rateRider" data-n="${n}" aria-label="${n} star${n > 1 ? 's' : ''}">★</button>`).join('')}</div>
+    <button class="textbtn" data-act="rateRider" data-n="0">Skip</button></section>`;
+}
+function deleteBox() {
+  if (!ui.del) return '<button class="textbtn danger" data-act="delAsk">Delete my account</button>';
+  return `<div class="ticket"><b>Delete your account?</b><p class="small muted">Your name, email, phone number and car are removed and you're logged out. Past trips stay in our records without your details. This can't be undone.</p>
+    <label class="field"><span>Enter your password to confirm</span><input id="del-pw" type="password" autocomplete="current-password"></label>
+    ${ui.delErr ? `<p class="err" role="alert">${esc(ui.delErr)}</p>` : ''}
+    <button class="btn danger" data-act="delConfirm" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Deleting…' : 'Delete my account'}</button><button class="textbtn" data-act="delAsk">Keep my account</button></div>`;
 }
 function carForm() {
   const p = vehicle(), v = ui.formDraft || p || { car: '', colour: '', plate: '', types: ['go'] };
@@ -149,8 +168,18 @@ function viewKey() { const j = Account.token && vehicle() && myJob(); return (Ac
 
 /* ---------- actions ---------- */
 const ACTIONS = {
+  rateRider: d => { const id = ui.rateTrip; ui.rateTrip = null; if (+d.n) { patchTrip(id, { riderRating: +d.n }); toast(APP_NAME, 'Thanks for rating your rider.'); } else render(true); },
+  delAsk: () => { ui.del = !ui.del; ui.delErr = ''; render(true); },
+  delConfirm: async () => {
+    const pw = (document.getElementById('del-pw') || {}).value || '';
+    if (!pw) { ui.delErr = 'Enter your password.'; render(true); return; }
+    ui.busy = 'del'; ui.delErr = ''; render(true);
+    try { await rpc('safar_delete_account', { p_token: Account.token, p_app: 'driver', p_password: pw }); Account.clear(); Live.stop(); ui.del = false; toast(APP_NAME, 'Your account has been deleted.'); }
+    catch (e) { ui.delErr = e.kind === 'setup' ? 'Account deletion is still being set up.' : e.message; }
+    ui.busy = ''; render(true);
+  },
   tab: d => { ui.tab = d.tab; render(true); window.scrollTo(0, 0); },
-  online: () => { prefs.online = !prefs.online; savePrefs(); render(true); poll(); },
+  online: () => { prefs.online = !prefs.online; savePrefs(); render(true); Live.stop(); poll(); },
   editCar: () => { ui.editCar = true; ui.formErr = ''; ui.formDraft = null; render(true); },
   cancelCar: () => { ui.editCar = false; ui.formErr = ''; ui.formDraft = null; render(true); },
   saveCar: async () => {
@@ -188,7 +217,7 @@ const ACTIONS = {
   complete: d => {
     const t = feed.trips.find(x => x.id === d.id); prefs.pos = { lat: PLACES[t.to].lat, lng: PLACES[t.to].lng }; savePrefs();
     patchTrip(d.id, { status: 'completed', completedAt: Date.now() });
-    toast(APP_NAME, `Trip complete. You earned ${money(t.fare * (1 - FEE))}.`);
+    toast(APP_NAME, `Trip complete. You earned ${money(tripTotal(t) * (1 - FEE))}.`); ui.rateTrip = t.id;
   }
 };
 
@@ -211,7 +240,7 @@ document.addEventListener('input', e => { const t = e.target; if (t.dataset && t
 document.addEventListener('change', e => { const t = e.target; if (t.dataset && t.dataset.swipe && +t.value < 90) { t.value = 0; t.blur(); } });
 function onLoggedIn() { ui.tab = 'drive'; ui.loaded = false; feed = { requests: [], trips: [] }; poll(); }
 setInterval(tick, 250);
-setInterval(poll, POLL_MS);
+setInterval(() => { if (pollDue()) poll(); }, POLL_MS);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 render(true);
 if (Account.token) Account.refresh().then(() => { render(true); poll(); });
