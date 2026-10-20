@@ -1,9 +1,9 @@
-/* ===== Safar X: the driver app ===== */
+/* ===== Safar X: the driver app (Night Route design) ===== */
 const APP_NAME = 'Safar X';
 Account.init('driver');
 const prefs = Object.assign({ online: true, pos: { x: 160, y: 200 } }, LS.get('safar-driver-prefs', {}));
 const savePrefs = () => LS.set('safar-driver-prefs', prefs);
-const ui = { declined: new Set(), editCar: false, formErr: '', formDraft: null, pinErr: '', busy: '', loaded: false };
+const ui = { tab: 'drive', declined: new Set(), editCar: false, formErr: '', formDraft: null, pinErr: '', busy: '', loaded: false };
 let feed = { requests: [], trips: [] };
 const writing = new Set();
 
@@ -44,55 +44,95 @@ function notifyChanges(oldTrips, oldReq) {
   }
 }
 
-/* ---------- views ---------- */
+/* ---------- views (Night Route design: coral on deep night) ---------- */
+const GOAL = 120;
+const DI = {
+  drive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3.5v6.3M4.2 15.5l5.8-2.4M19.8 15.5 14 13.1"/></svg>',
+  earn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>'
+};
+const net = t => t.fare * (1 - FEE) + (t.tip || 0);
+const dstop = (cls, small, big, side = '') => `<div class="rstop ${cls}"><i></i><span>${small ? `<small>${small}</small>` : ''}<b>${big}</b></span>${side}</div>`;
+const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+function completed() { return feed.trips.filter(t => t.status === 'completed').sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0)); }
 function view() {
-  if (!Account.token) return authView({ app: 'driver', headline: 'Drive and earn with Safar X.', steps: true, signupTitle: 'Create your driver account', signupNote: 'Next you add your car. Riders see your first name and number plate.', namePh: 'Bilal Ahmed', termsText: 'I agree to the Safar X terms and privacy policy, and confirm I am 21 or over',
+  if (!Account.token) return authView({ app: 'driver', headline: 'Your city.<br>Your shift.', steps: true, signupTitle: 'Create your driver account', signupNote: 'Next you add your car. Riders see your first name and number plate.', namePh: 'Bilal Ahmed', termsText: 'I agree to the Safar X terms and privacy policy, and confirm I am 21 or over',
     fine: 'By continuing you agree to the Safar X terms and privacy policy. You need a private hire licence to drive.', other: 'Need a ride? Get the <b>Safar Rides</b> app.',
-    art: { label: 'Safar X cars circling the Safar X logo', bg: '#14171f', car: '#2a2f3a', carEdge: '#3b4252', glass: '#0a0c10', light: '#f5b301', badge: '#f5b301',
-      center: '<path d="M144 114 L176 146 M176 114 L144 146" stroke="#161105" stroke-width="10" stroke-linecap="round"/>' } });
-  const me = Account.me || { name: '' }, head = `<header class="top"><div class="top-in">${LOGO_X}<b>Safar X</b></div></header>`;
+    hero: { label: 'A night map of Leeds with a glowing coral route to the next pickup', bg: '#0a0d1c', accent: '#ff6f59', ink: '#0a0d1c', tag: '£9.40' } });
+  const head = `<header class="top"><div class="top-in"><span class="brandmini">${LOGO_X}Safar X</span>${vehicle() && !ui.editCar ? `<button class="onpill" role="switch" aria-checked="${prefs.online}" data-act="online" style="margin-left:auto" ${myJob() ? 'disabled' : ''}><i></i>${prefs.online ? 'Online' : 'Offline'}</button>` : ''}</div></header>`;
   if (!vehicle() || ui.editCar) return head + `<main class="wrap">${carForm()}${vehicle() ? '' : '<p class="foot"><button class="linkbtn" data-act="logout">Log out</button></p>'}</main>`;
+  const job = myJob(), tab = job ? 'drive' : ui.tab;
+  const body = tab === 'earnings' ? earningsView() : tab === 'you' ? youView() : driveView();
+  return head + `<main class="wrap" style="padding-bottom:120px">${body}</main>${job ? '' : dtabbar()}`;
+}
+function dtabbar() {
+  const tabs = [['drive', 'Drive', DI.drive], ['earnings', 'Earnings', DI.earn], ['you', 'You', DI.user]];
+  return `<nav class="tabbar" style="--n:3" aria-label="Main">${tabs.map(([k, l, ic]) => `<button data-act="tab" data-tab="${k}" aria-current="${ui.tab === k}">${ic}<span>${l}</span></button>`).join('')}</nav>`;
+}
+function driveView() {
   const v = vehicle(), job = myJob(), reqs = openRequests();
-  const done = feed.trips.filter(t => t.status === 'completed').sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
-  const earned = done.reduce((a, t) => a + t.fare * (1 - FEE) + (t.tip || 0), 0), rated = done.filter(t => t.rating);
-  const bar = `<div class="drv" style="grid-template-columns:48px 1fr auto"><div class="avatar" style="width:48px;height:48px;font-size:1rem">${esc(initials(me.name))}</div>
-    <div class="stack tight"><h3>${esc(me.name)}</h3><span class="small muted"><span class="plate" style="font-size:.74rem">${esc(v.plate)}</span> ${esc(v.colour)} ${esc(v.car)}</span></div>
-    <button class="switch" role="switch" aria-checked="${prefs.online}" data-act="online" ${job ? 'disabled' : ''}><span>${prefs.online ? 'Online' : 'Offline'}</span><i></i></button></div>`;
-  let main;
-  if (!ui.loaded) main = '<div class="empty">Connecting to Safar…</div>';
-  else if (job) main = jobView(job);
-  else if (reqs.length) {
+  if (!ui.loaded) return '<div class="empty">Connecting to Safar…</div>';
+  if (job) return jobView(job);
+  if (reqs.length) {
     const t = reqs[0], A = PLACES[t.from], left = Math.max(0, Math.ceil((t.requestAt + REQ_WINDOW - Date.now()) / 1000));
-    main = mapSVG({ from: t.from, to: t.to, approach: prefs.pos, mine: { ...prefs.pos, a: 0 } }) + `<section class="sheet hot">
-      <div class="spread"><div class="stack tight"><span class="label">New ${esc(TYPES[t.type].name)} request</span><h1>${money(t.fare * (1 - FEE))}</h1><span class="small muted">your earnings after the 25% Safar fee</span></div><div class="count" data-count="${t.id}">${left}</div></div>
-      <div class="route"><span class="dot"></span><span><b>${esc(A.name)}</b> <span class="small muted">· ${minsBetween(prefs.pos, A)} min away</span></span><span></span><span class="rail"></span><span></span><span></span><span class="sq"></span><span>${esc(PLACES[t.to].name)} <span class="small muted mono">· ${t.miles.toFixed(1)} mi · ${t.pay === 'cash' ? 'cash' : 'card'}</span></span></div>
-      <p class="small muted">Rider: ${esc(t.riderName || 'Rider')}</p>
-      <div class="row"><button class="btn line" data-act="decline" data-id="${t.id}" style="flex:1">Decline</button><button class="btn" data-act="accept" data-id="${t.id}" style="flex:2" ${ui.busy ? 'disabled' : ''}>${ui.busy === t.id ? 'Accepting…' : 'Accept'}</button></div></section>`;
-  } else main = mapSVG({ mine: { ...prefs.pos, a: 0 } }) + `<section class="sheet"><p class="status">${prefs.online ? 'Looking for riders…' : 'You are offline'}</p>
-      <p class="small muted">${prefs.online ? `Requests for ${v.types.map(k => TYPES[k].name).join(', ')} appear here. Keep this screen open.` : 'Go online to start getting ride requests.'}</p></section>`;
-  return head + `<main class="wrap">${bar}${main}
-    <div class="kpis"><div class="kpi"><span class="label">Earnings</span><b>${money(earned)}</b><span class="small muted">after fee, incl. tips</span></div><div class="kpi"><span class="label">Trips</span><b>${done.length}</b><span class="small muted">${rated.length ? '★ ' + (rated.reduce((a, t) => a + t.rating, 0) / rated.length).toFixed(2) + ' from riders' : 'no ratings yet'}</span></div></div>
-    ${done.length ? `<section class="sheet"><h2>Recent trips</h2><div class="list">${done.slice(0, 6).map(t => `<div><span>${esc(PLACES[t.from].name)} → ${esc(PLACES[t.to].name)}<br><span class="small muted">${esc(t.riderName || 'Rider')} · ${ago(t.completedAt || t.requestAt)}${t.rating ? ' · ★ ' + t.rating : ''}${t.tip ? ' · ' + money(t.tip) + ' tip' : ''}</span></span><span class="mono">${money(t.fare * (1 - FEE) + (t.tip || 0))}</span></div>`).join('')}</div></section>` : ''}
-    <div class="row"><button class="btn ghost sm" data-act="editCar">Edit car details</button><button class="btn ghost sm" data-act="logout" ${job ? 'disabled' : ''}>Log out</button></div></main>`;
+    return mapSVG({ from: t.from, to: t.to, approach: prefs.pos, mine: { ...prefs.pos, a: 0 } }) + `<section class="ticket hot" aria-label="New ride request">
+      <div class="spread"><div class="stack tight"><span class="label">New ${esc(TYPES[t.type].name)} request</span><span class="bigeta"><b>${money(net(t))}</b></span><span class="small muted">your earnings after the 25% Safar fee</span></div>
+        ${ring(left / (REQ_WINDOW / 1000), 74, { attr: `data-ring="${t.id}"`, inner: `<b class="mono" style="font-size:1.4rem" data-count="${t.id}">${left}</b><br><small class="muted">sec</small>` })}</div>
+      <div class="ribbon">${dstop('start', `Pickup · ${minsBetween(prefs.pos, A)} min away`, esc(A.name))}${dstop('end', `Drop-off · ${t.miles.toFixed(1)} mi`, esc(PLACES[t.to].name), `<span class="side">${t.pay === 'cash' ? 'cash' : 'card'}</span>`)}</div>
+      <div class="perf"></div>
+      <p class="small muted">Rider: <b style="color:var(--ink)">${esc(t.riderName || 'Rider')}</b></p>
+      <div class="swipe"><span>${ui.busy === t.id ? 'Accepting…' : 'Swipe to accept'}</span><input type="range" min="0" max="100" value="${ui.busy === t.id ? 100 : 0}" data-swipe="${t.id}" aria-label="Swipe to accept this ride" ${ui.busy ? 'disabled' : ''}></div>
+      <div class="row"><button class="btn line" data-act="decline" data-id="${t.id}" style="flex:1">Decline</button><button class="btn ghost" data-act="accept" data-id="${t.id}" style="flex:1" ${ui.busy ? 'disabled' : ''}>Accept</button></div></section>`;
+  }
+  const done = completed(), today = done.filter(t => sameDay(t.completedAt || t.requestAt, Date.now())), earned = today.reduce((a, t) => a + net(t), 0);
+  const rated = done.filter(t => t.rating), rating = rated.length ? (rated.reduce((a, t) => a + t.rating, 0) / rated.length).toFixed(2) : '–';
+  return `<section class="ticket" style="flex-direction:row;align-items:center;gap:16px">
+      ${ring(earned / GOAL, 118, { w: 9, inner: `<b style="font:800 1.45rem var(--display)">${money(earned)}</b><br><small class="muted">of £${GOAL} goal</small>` })}
+      <div class="stack tight"><span class="label">Today</span><h2>${earned >= GOAL ? 'Goal smashed. Nice shift.' : `${money(GOAL - earned)} to your goal`}</h2><span class="small muted">After the Safar fee, including tips.</span></div></section>
+    <div class="stat3"><div><small>Trips today</small><b>${today.length}</b></div><div><small>Rating</small><b>★ ${rating}</b></div><div><small>Car</small><b class="plate" style="font:600 .8rem var(--mono);align-self:flex-start">${esc(v.plate)}</b></div></div>
+    ${mapSVG({ mine: { ...prefs.pos, a: 0 } })}
+    <section class="ticket"><div class="spread"><p class="status">${prefs.online ? 'Looking for riders…' : 'You are offline'}</p>${prefs.online ? '<div class="pulse" style="width:28px;height:28px;margin:0"><i style="width:10px;height:10px"></i></div>' : ''}</div>
+      <p class="small muted">${prefs.online ? `Requests for ${v.types.map(k => TYPES[k].name).join(', ')} appear here. Keep this screen open.` : 'Tap Offline at the top to go online and get ride requests.'}</p></section>`;
+}
+function earningsView() {
+  const done = completed(), all = done.reduce((a, t) => a + net(t), 0), tips = done.reduce((a, t) => a + (t.tip || 0), 0);
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - 6 + i); return d; });
+  const per = days.map(d => done.filter(t => sameDay(t.completedAt || t.requestAt, d)).reduce((a, t) => a + net(t), 0));
+  const week = per.reduce((a, b) => a + b, 0), max = Math.max(...per, 1);
+  return `<div class="stack tight"><span class="label">This week</span><h1 class="display">${money(week)}</h1><span class="small muted">${done.length} trip${done.length === 1 ? '' : 's'} in total · ${money(tips)} in tips</span></div>
+    <section class="ticket"><div class="bars" role="img" aria-label="Earnings for the last 7 days">${days.map((d, i) => `<div><em>${per[i] ? '£' + Math.round(per[i]) : ''}</em><i class="${i === 6 ? 'on' : ''}" style="height:${Math.max(3, per[i] / max * 100).toFixed(0)}%"></i><small>${d.toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 2)}</small></div>`).join('')}</div></section>
+    <section class="stack"><h2>Recent trips</h2>${done.length ? `<div class="menu">${done.slice(0, 10).map(t => `<div><span>${esc(PLACES[t.from].name)} → ${esc(PLACES[t.to].name)}<br><span class="small muted">${esc(t.riderName || 'Rider')} · ${ago(t.completedAt || t.requestAt)}${t.rating ? ' · ★ ' + t.rating : ''}${t.tip ? ' · ' + money(t.tip) + ' tip' : ''}</span></span><span class="mono">${money(net(t))}</span></div>`).join('')}</div>` : '<div class="empty">Finish a trip and your earnings show here.</div>'}</section>
+    <p class="small muted">All-time earnings ${money(all)} after the 25% Safar fee.</p>`;
+}
+function youView() {
+  const me = Account.me || {}, v = vehicle();
+  return `<div class="drv" style="grid-template-columns:64px 1fr"><div class="avatar" style="width:64px;height:64px;font-size:1.3rem">${esc(initials(me.name))}</div><div class="stack tight"><h1>${esc(me.name || '')}</h1><span class="small muted">Safar X driver</span></div></div>
+    <div class="ticket"><div class="spread"><span class="label">Your car</span><span class="plate">${esc(v.plate)}</span></div><h2>${esc(v.colour)} ${esc(v.car)}</h2><div class="perf"></div><span class="small muted">Takes ${v.types.map(k => TYPES[k].name).join(', ')}</span></div>
+    <div class="menu"><div><span class="muted">Email</span><span>${esc(me.email || '')}</span></div><div><span class="muted">Mobile</span><span class="mono">${me.phone ? showPhone(me.phone) : ''}</span></div></div>
+    <div class="row"><button class="btn ghost" data-act="editCar">Edit car details</button><button class="btn line" data-act="logout">Log out</button></div>`;
 }
 function jobView(job) {
   const ph = phase(job), A = PLACES[job.from], B = PLACES[job.to];
   const map = mapSVG({ from: job.from, to: job.to, approach: ph === 'arriving' ? job.start : null, mine: { ...carPos(job), id: job.id } });
-  const rider = `<div class="spread"><div class="stack tight"><span class="label">Rider</span><h3>${esc(job.riderName || 'Rider')}</h3></div><span class="mono" style="font-weight:600">${money(job.fare * (1 - FEE))}</span></div>`;
-  if (ph === 'arriving') return map + `<section class="sheet"><div class="spread"><p class="status" data-eta="${job.id}">${etaText(job)}</p><span class="pill">To pickup</span></div>
-      <div class="prog"><i data-prog="${job.id}" style="width:${(progress(job) * 100).toFixed(1)}%"></i></div>${rider}
-      <p>Pick up at <b>${esc(A.name)}</b></p><button class="btn line sm" data-act="skipPickup" data-id="${job.id}">Test mode: arrive now</button></section>`;
-  if (ph === 'arrived') return map + `<section class="sheet hot"><p class="status">You're at ${esc(A.name)}</p>${rider}
-      <label class="field"><span>Ask the rider for their 4-digit PIN</span><input id="pin" class="pininput" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••"></label>
+  const rider = `<div class="spread"><div class="stack tight"><span class="label">Rider</span><h3>${esc(job.riderName || 'Rider')}</h3></div><span class="mono" style="font-weight:600;color:var(--accent)">${money(job.fare * (1 - FEE))}</span></div>`;
+  const ribbon = `<div class="ribbon">${dstop('start', 'Pickup', esc(A.name))}${dstop('end', 'Drop-off', esc(B.name), `<span class="side">${job.pay === 'cash' ? 'cash' : 'card'}</span>`)}</div>`;
+  const left = () => Math.max(1, Math.ceil((1 - progress(job)) * (ph === 'arriving' ? job.pickupMins : job.mins)));
+  if (ph === 'arriving') return map + `<section class="ticket"><div class="spread"><div class="bigeta"><b data-etanum="${job.id}">${left()}</b><span>min<small>to pickup at ${esc(A.name)}</small></span></div><span class="pill">To pickup</span></div>
+      <p class="sr" data-eta="${job.id}">${etaText(job)}</p>
+      <div class="prog"><i data-prog="${job.id}" style="width:${(progress(job) * 100).toFixed(1)}%"></i></div>${ribbon}<div class="perf"></div>${rider}
+      <button class="btn line sm" data-act="skipPickup" data-id="${job.id}">Test mode: arrive now</button></section>`;
+  if (ph === 'arrived') return map + `<section class="ticket hot"><p class="status">You're at ${esc(A.name)}</p>${rider}<div class="perf"></div>
+      <label class="field"><span>Ask the rider for their 4-digit boarding PIN</span><input id="pin" class="pininput" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••"></label>
       ${ui.pinErr ? `<p class="err" role="alert">${esc(ui.pinErr)}</p>` : '<p class="small muted">The rider sees the PIN in Safar Rides. The trip only starts when it matches.</p>'}
-      <button class="btn block" data-act="start" data-id="${job.id}" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Checking…' : 'Start trip'}</button></section>`;
-  if (ph === 'ontrip') return map + `<section class="sheet"><div class="spread"><p class="status" data-eta="${job.id}">${etaText(job)}</p><span class="pill">On trip</span></div>
-      <div class="prog"><i data-prog="${job.id}" style="width:${(progress(job) * 100).toFixed(1)}%"></i></div>${rider}
-      <p>Drop off at <b>${esc(B.name)}</b> · ${job.pay === 'cash' ? `collect <b class="mono">${money(job.fare)}</b> in cash` : 'paid by card'}</p>
+      <button class="btn block authgo" data-act="start" data-id="${job.id}" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Checking…' : 'Start trip'}</button></section>`;
+  if (ph === 'ontrip') return map + `<section class="ticket"><div class="spread"><div class="bigeta"><b data-etanum="${job.id}">${left()}</b><span>min<small>to ${esc(B.name)}</small></span></div><span class="pill">On trip</span></div>
+      <p class="sr" data-eta="${job.id}">${etaText(job)}</p>
+      <div class="prog"><i data-prog="${job.id}" style="width:${(progress(job) * 100).toFixed(1)}%"></i></div>${ribbon}<div class="perf"></div>${rider}
+      <p class="small">${job.pay === 'cash' ? `Collect <b class="mono">${money(job.fare)}</b> in cash` : 'Paid by card'}</p>
       <button class="btn line sm" data-act="skipTrip" data-id="${job.id}">Test mode: arrive now</button></section>`;
-  return map + `<section class="sheet hot"><p class="status">You've reached ${esc(B.name)}</p>${rider}
+  return map + `<section class="ticket hot"><p class="status">You've reached ${esc(B.name)}</p>${rider}
       ${job.pay === 'cash' ? `<div class="note amber"><span>💷</span><span>Collect <b class="mono">${money(job.fare)}</b> in cash before the rider leaves.</span></div>` : ''}
-      <button class="btn block" data-act="complete" data-id="${job.id}">Complete trip</button></section>`;
+      <button class="btn block authgo" data-act="complete" data-id="${job.id}">Complete trip</button></section>`;
 }
 function carForm() {
   const p = vehicle(), v = ui.formDraft || p || { car: '', colour: '', plate: '', types: ['go'] };
@@ -116,6 +156,7 @@ function viewKey() { const j = Account.token && vehicle() && myJob(); return (Ac
 
 /* ---------- actions ---------- */
 const ACTIONS = {
+  tab: d => { ui.tab = d.tab; render(true); window.scrollTo(0, 0); },
   online: () => { prefs.online = !prefs.online; savePrefs(); render(true); poll(); },
   editCar: () => { ui.editCar = true; ui.formErr = ''; ui.formDraft = null; render(true); },
   cancelCar: () => { ui.editCar = false; ui.formErr = ''; ui.formDraft = null; render(true); },
@@ -168,10 +209,15 @@ function tick() {
     document.querySelectorAll(`[data-car="${job.id}"]`).forEach(g => g.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)}) rotate(${(pt.a || 0).toFixed(0)})`));
     document.querySelectorAll(`[data-prog="${job.id}"]`).forEach(b => b.style.width = (progress(job, now) * 100).toFixed(1) + '%');
     document.querySelectorAll(`[data-eta="${job.id}"]`).forEach(x => x.textContent = etaText(job));
+    const ph = phase(job, now); document.querySelectorAll(`[data-etanum="${job.id}"]`).forEach(x => x.textContent = Math.max(1, Math.ceil((1 - progress(job, now)) * (ph === 'arriving' ? job.pickupMins : job.mins))));
   }
   document.querySelectorAll('[data-count]').forEach(x => { const t = feed.requests.find(r => r.id === x.dataset.count); if (t) x.textContent = Math.max(0, Math.ceil((t.requestAt + REQ_WINDOW - now) / 1000)); });
+  document.querySelectorAll('[data-ring]').forEach(x => { const t = feed.requests.find(r => r.id === x.dataset.ring); if (t) x.setAttribute('stroke-dasharray', (Math.max(0, (t.requestAt + REQ_WINDOW - now) / REQ_WINDOW) * 100).toFixed(1) + ' 100'); });
 }
-function onLoggedIn() { ui.loaded = false; feed = { requests: [], trips: [] }; poll(); }
+/* swipe to accept: drag the coral knob to the end of the track */
+document.addEventListener('input', e => { const t = e.target; if (t.dataset && t.dataset.swipe && +t.value >= 90 && !ui.busy) { t.value = 100; t.blur(); ACTIONS.accept({ id: t.dataset.swipe }); } });
+document.addEventListener('change', e => { const t = e.target; if (t.dataset && t.dataset.swipe && +t.value < 90) { t.value = 0; t.blur(); } });
+function onLoggedIn() { ui.tab = 'drive'; ui.loaded = false; feed = { requests: [], trips: [] }; poll(); }
 setInterval(tick, 250);
 setInterval(poll, POLL_MS);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });

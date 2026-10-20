@@ -108,8 +108,8 @@ function toast(who, text) {
   box.appendChild(el); while (box.children.length > 3) box.firstChild.remove();
   setTimeout(() => el.remove(), 4500);
 }
-const LOGO_R = `<svg viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="14" fill="#2347e0"/><path d="M8 19 C 11 9, 19 21, 22 11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="22" cy="11" r="2.6" fill="#f5b301"/></svg>`;
-const LOGO_X = `<svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="8" fill="#f5b301"/><path d="M9 9 L21 21 M21 9 L9 21" stroke="#161105" stroke-width="3.4" stroke-linecap="round"/></svg>`;
+const LOGO_R = `<svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="9" fill="#e8c07a"/><path d="M8.5 20 C 11 9, 19 21, 21.5 10" fill="none" stroke="#1a1406" stroke-width="2.6" stroke-linecap="round"/><circle cx="8.5" cy="20" r="2.4" fill="#e8c07a" stroke="#1a1406" stroke-width="1.8"/><rect x="19.3" y="7.8" width="4.4" height="4.4" fill="#1a1406"/></svg>`;
+const LOGO_X = `<svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="9" fill="#ff6f59"/><path d="M9.5 9.5 L20.5 20.5 M20.5 9.5 L9.5 20.5" stroke="#0a0d1c" stroke-width="3.4" stroke-linecap="round"/></svg>`;
 const carIcon = type => { const c = type === 'green' ? 'var(--ok)' : type === 'comfort' ? 'var(--muted)' : 'var(--car)'; const w = type === 'xl' ? 48 : 44; return `<svg viewBox="0 0 52 30" aria-hidden="true"><rect x="2" y="12" width="${w}" height="11" rx="4" fill="${c}"/><path d="M10 12 L16 5 H${type === 'xl' ? 40 : 32} L${type === 'xl' ? 46 : 40} 12 Z" fill="${c}" opacity=".75"/><circle cx="12" cy="23" r="4" fill="var(--surface)" stroke="var(--car)" stroke-width="2"/><circle cx="${w - 8}" cy="23" r="4" fill="var(--surface)" stroke="var(--car)" stroke-width="2"/></svg>`; };
 function mapSVG(o) {
   const A = o.from && PLACES[o.from], B = o.to && PLACES[o.to];
@@ -127,10 +127,10 @@ function mapSVG(o) {
     <path d="M-10 100 C 60 90, 110 112, 170 100 S 290 92, 370 104" fill="none" stroke="var(--water)" stroke-width="9" stroke-linecap="round"/>
     <g stroke="var(--road)" stroke-width="8" stroke-linecap="round">${streets}</g>
     ${o.approach && A ? `<polyline points="${path(o.approach, A).map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-dasharray="1 7" stroke-linecap="round"/>` : ''}
-    ${A && B ? `<polyline points="${path(A, B).map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--ink)" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+    ${A && B ? `<polyline points="${path(A, B).map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--route,var(--ink))" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
     ${labels}
-    ${A ? `<g transform="translate(${A.x} ${A.y})"><circle r="9" fill="var(--accent)"/><circle r="3.5" fill="var(--surface)"/></g>` : ''}
-    ${B ? `<g transform="translate(${B.x} ${B.y})"><rect x="-8" y="-8" width="16" height="16" fill="var(--ink)"/><rect x="-3" y="-3" width="6" height="6" fill="var(--surface)"/></g>` : ''}
+    ${A ? `<g transform="translate(${A.x} ${A.y})"><circle r="8" fill="var(--ground)" stroke="var(--accent)" stroke-width="4"/></g>` : ''}
+    ${B ? `<g transform="translate(${B.x} ${B.y})"><rect x="-8" y="-8" width="16" height="16" rx="2" fill="var(--route,var(--ink))"/><rect x="-3" y="-3" width="6" height="6" fill="var(--ground)"/></g>` : ''}
     ${(o.cars || []).map(c => car(c, false)).join('')}${o.mine ? car(o.mine, true) : ''}
   </svg>`;
 }
@@ -157,6 +157,27 @@ function heroArt(o) {
   const pts = Array.from({ length: 24 }, (_, i) => { const a = i * 15 * Math.PI / 180, r = i % 2 ? 46 : 53; return `${(160 + r * Math.sin(a)).toFixed(1)},${(130 - r * Math.cos(a)).toFixed(1)}`; }).join(' ');
   return `<svg class="heroart" viewBox="0 0 320 260" role="img" aria-label="${esc(o.label)}"><rect width="320" height="260" fill="${o.bg}"/>${cars}<polygon points="${pts}" fill="${o.badge}" stroke="${o.bg}" stroke-width="8" stroke-linejoin="round"/>${o.center}</svg>`;
 }
+/* Night Route welcome art: a city at night with one glowing route from a ring to a square */
+function routeHero(o) {
+  let streets = '';
+  for (let x = 20; x <= 320; x += 50) streets += `<line x1="${x}" y1="0" x2="${x}" y2="260"/>`;
+  for (let y = 25; y <= 260; y += 50) streets += `<line x1="0" y1="${y}" x2="320" y2="${y}"/>`;
+  const stars = [[24, 18], [70, 34], [118, 12], [210, 22], [300, 70], [36, 84], [286, 14]].map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 3 ? 1.2 : 1.8}" fill="#f3f1ea" opacity="${i % 2 ? .5 : .8}"/>`).join('');
+  const route = 'M62 214 C 62 170, 118 176, 140 140 S 214 104, 236 80 S 258 54, 262 44';
+  const car = (x, y, a) => `<g transform="translate(${x} ${y}) rotate(${a})"><rect x="-11" y="-6" width="22" height="12" rx="4" fill="#f3f1ea"/><rect x="2" y="-4.5" width="5" height="9" rx="1.5" fill="#0f1226"/></g>`;
+  return `<svg class="heroart" viewBox="0 0 320 260" role="img" aria-label="${esc(o.label)}"><rect width="320" height="260" fill="${o.bg}"/>
+    <rect x="196" y="150" width="96" height="70" rx="14" fill="#15302a"/><rect x="18" y="40" width="64" height="58" rx="14" fill="#15302a"/>
+    <path d="M-10 120 C 60 104, 110 132, 170 118 S 280 100, 330 116" fill="none" stroke="#16284a" stroke-width="12" stroke-linecap="round"/>
+    <g stroke="#1e2340" stroke-width="9" stroke-linecap="round">${streets}</g>${stars}
+    <path d="${route}" fill="none" stroke="${o.accent}" stroke-width="20" stroke-linecap="round" opacity=".16"/>
+    <path d="${route}" fill="none" stroke="${o.accent}" stroke-width="6" stroke-linecap="round"/>
+    ${car(104, 172, -30)}${car(214, 98, -38)}${car(40, 150, 90)}${car(290, 204, 0)}
+    <circle cx="62" cy="214" r="12" fill="${o.bg}" stroke="${o.accent}" stroke-width="6"/>
+    <rect x="250" y="32" width="24" height="24" rx="3" fill="${o.accent}"/><rect x="257" y="39" width="10" height="10" fill="${o.bg}"/>
+    <g transform="translate(170 26)"><rect width="66" height="30" rx="15" fill="${o.accent}"/><text x="33" y="20" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="13" fill="${o.ink}">${esc(o.tag)}</text></g></svg>`;
+}
+/* progress ring: frac 0..1 */
+const ring = (frac, size, o = {}) => `<div class="ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" stroke="var(--line)" stroke-width="${o.w || 8}"/><circle ${o.attr || ''} cx="50" cy="50" r="44" pathLength="100" stroke="${o.color || 'var(--accent)'}" stroke-width="${o.w || 8}" stroke-dasharray="${(Math.max(0, Math.min(1, frac)) * 100).toFixed(1)} 100"/></svg><div class="in">${o.inner || ''}</div></div>`;
 function authView(o) {
   const s = authUI, d = s.draft;
   const err = s.err ? `<p class="err" role="alert">${esc(s.err)}</p>` : '';
@@ -179,7 +200,7 @@ function authView(o) {
       <button class="btn block authgo" data-act="signup" ${busy}>${s.busy ? 'Creating your account…' : 'Create account'}</button>
       <p class="small center">Already have an account? <button class="linkbtn" data-act="authStep" data-step="start">Log in</button></p></div>`;
   } else {
-    body = `${heroArt(o.art)}<div class="authbody"><h1 class="authh big">${o.headline}</h1>
+    body = `${o.hero ? routeHero(o.hero) : heroArt(o.art)}<div class="authbody"><h1 class="authh big">${o.headline}</h1>
       <label class="field"><span class="sr">Email or mobile number</span><input id="au-ident" class="identbox" data-ident type="text" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" value="${esc(s.ident)}" placeholder="Enter email or mobile number"></label>
       ${err}
       <button class="btn block authgo" data-act="authContinue" ${busy}>${s.busy ? 'Checking…' : 'Continue'}</button>
