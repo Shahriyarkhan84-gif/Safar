@@ -46,7 +46,10 @@ function notifyChanges(oldTrips, oldReq) {
 
 /* ---------- views ---------- */
 function view() {
-  if (!Account.token) return authView({ app: 'driver', name: APP_NAME, logo: LOGO_X, tagline: 'Drive around Leeds and earn on your own schedule.', steps: true, signupTitle: 'Create your driver account', signupNote: 'Next you add your car. Riders see your first name and number plate.', namePh: 'Bilal Ahmed', termsText: 'I agree to the Safar X terms and privacy policy, and confirm I am 21 or over', other: 'Need a ride? Get the <b>Safar Rides</b> app.' });
+  if (!Account.token) return authView({ app: 'driver', headline: 'Drive and earn with Safar X.', steps: true, signupTitle: 'Create your driver account', signupNote: 'Next you add your car. Riders see your first name and number plate.', namePh: 'Bilal Ahmed', termsText: 'I agree to the Safar X terms and privacy policy, and confirm I am 21 or over',
+    fine: 'By continuing you agree to the Safar X terms and privacy policy. You need a private hire licence to drive.', other: 'Need a ride? Get the <b>Safar Rides</b> app.',
+    art: { label: 'Safar X cars circling the Safar X logo', bg: '#14171f', car: '#2a2f3a', carEdge: '#3b4252', glass: '#0a0c10', light: '#f5b301', badge: '#f5b301',
+      center: '<path d="M144 114 L176 146 M176 114 L144 146" stroke="#161105" stroke-width="10" stroke-linecap="round"/>' } });
   const me = Account.me || { name: '' }, head = `<header class="top"><div class="top-in">${LOGO_X}<b>Safar X</b></div></header>`;
   if (!vehicle() || ui.editCar) return head + `<main class="wrap">${carForm()}${vehicle() ? '' : '<p class="foot"><button class="linkbtn" data-act="logout">Log out</button></p>'}</main>`;
   const v = vehicle(), job = myJob(), reqs = openRequests();

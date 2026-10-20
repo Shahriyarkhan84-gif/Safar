@@ -83,3 +83,5 @@ html.r .avatar{background:var(--chip);color:var(--ink)}
 .menu{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:20px;overflow:hidden}
 .menu > *{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px;border-top:1px solid var(--line)}
 .menu > *:first-child{border-top:0}
+
+html:root.r.r.authscreen{--bg:#ffffff; --surface:#ffffff; --ink:#111111; --muted:#6b6f76; --line:#e3e3e3; --chip:#f1f1f1; --accent:#2347e0; --accent-soft:#e3e9ff; --danger:#c2362b; --danger-soft:#fbe3e0; color-scheme:light}

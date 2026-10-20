@@ -90,7 +90,10 @@ async function requestRide(d) {
 
 /* ---------- views ---------- */
 function view() {
-  if (!Account.token) return authView({ app: 'rides', name: APP_NAME, logo: LOGO_R, tagline: 'Rides across Leeds, booked in seconds.', signupTitle: 'Create your account', signupNote: 'Your driver sees your first name when they pick you up.', namePh: 'Sara Hussain', termsText: 'I agree to the Safar Rides terms and privacy policy', other: 'Want to drive? Get the <b>Safar X</b> driver app.' });
+  if (!Account.token) return authView({ app: 'rides', headline: 'Go anywhere with Safar.', signupTitle: 'Create your account', signupNote: 'Your driver sees your first name when they pick you up.', namePh: 'Sara Hussain', termsText: 'I agree to the Safar Rides terms and privacy policy',
+    fine: 'By continuing you agree to the Safar Rides terms and privacy policy. Drivers never see your phone number or email.', other: 'Want to drive? Get the <b>Safar X</b> driver app.',
+    art: { label: 'Safar cars circling the Safar logo', bg: '#efefef', car: '#ffffff', carEdge: '#c9c9c9', glass: '#1c1c1e', light: '#e5483b', badge: '#2347e0',
+      center: '<g transform="translate(124 94) scale(2.4)"><path d="M8 19 C 11 9, 19 21, 22 11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="22" cy="11" r="2.6" fill="#f5b301"/></g>' } });
   if (!ui.loaded) return `<main class="wrap"><div class="empty">Loading your rides…</div></main>`;
   const t = activeTrip();
   if (t) return `<main class="wrap flush"><div class="locbar"><span class="brandmini">${LOGO_R}Safar Rides</span></div>${tripMap(t)}${tripSheet(t)}</main>`;

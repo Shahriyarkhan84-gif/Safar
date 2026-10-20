@@ -167,3 +167,17 @@ input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px 
 .tel.pw{grid-template-columns:1fr auto}
 .tel.pw .linkbtn{padding:0 14px;text-decoration:none}
 .avatar.sm{width:36px;height:36px;font-size:.8rem;margin-left:auto;border:0;cursor:pointer}
+
+/* sign-in: picture on top, one field, one big button */
+.authwrap{max-width:560px;margin:0 auto;padding-bottom:40px;display:flex;flex-direction:column;gap:20px}
+.heroart{width:100%;height:auto;display:block;max-height:46vh;object-fit:cover}
+.authbody{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+.authwrap > .authbody:first-child{padding-top:24px}
+.authh{font-size:1.8rem;font-weight:800;font-stretch:112%}
+.authh.big{font-size:2.1rem}
+.identbox{background:var(--chip);border:1px solid transparent;padding:18px;font-size:1.1rem;border-radius:12px}
+.identbox:focus{border-color:var(--ink);outline:none}
+.authgo{padding:17px;font-size:1.1rem;border-radius:12px}
+.idchip{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--chip);border-radius:12px;padding:14px 16px;font-weight:600}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.authwrap .foot{padding:0 20px}

@@ -173,6 +173,20 @@ input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px 
 .tel.pw{grid-template-columns:1fr auto}
 .tel.pw .linkbtn{padding:0 14px;text-decoration:none}
 .avatar.sm{width:36px;height:36px;font-size:.8rem;margin-left:auto;border:0;cursor:pointer}
+
+/* sign-in: picture on top, one field, one big button */
+.authwrap{max-width:560px;margin:0 auto;padding-bottom:40px;display:flex;flex-direction:column;gap:20px}
+.heroart{width:100%;height:auto;display:block;max-height:46vh;object-fit:cover}
+.authbody{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+.authwrap > .authbody:first-child{padding-top:24px}
+.authh{font-size:1.8rem;font-weight:800;font-stretch:112%}
+.authh.big{font-size:2.1rem}
+.identbox{background:var(--chip);border:1px solid transparent;padding:18px;font-size:1.1rem;border-radius:12px}
+.identbox:focus{border-color:var(--ink);outline:none}
+.authgo{padding:17px;font-size:1.1rem;border-radius:12px}
+.idchip{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--chip);border-radius:12px;padding:14px 16px;font-weight:600}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.authwrap .foot{padding:0 20px}
 </style></head>
 <body><div id="app"></div><div id="toasts" aria-live="polite"></div>
 <script>/* ===== Safar shared core: used by both Safar Rides and Safar X ===== */
@@ -325,43 +339,70 @@ const Account = {
     catch (e) { if (e.kind === 'session') { this.clear(); render(true); } }
   }
 };
-const authUI = { step: null, draft: { name: '', email: '', phone: '', password: '', terms: false }, err: '', busy: false, show: false };
+const authUI = { step: 'start', ident: '', kind: 'phone', draft: { name: '', email: '', phone: '', password: '', terms: false }, err: '', busy: false, show: false };
+function heroArt(o) {
+  const cars = Array.from({ length: 12 }, (_, i) => {
+    const a = i * 30, r = 98, x = 160 + r * Math.sin(a * Math.PI / 180), y = 130 - r * Math.cos(a * Math.PI / 180);
+    return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${a})"><rect x="-18" y="-9.5" width="36" height="19" rx="8" fill="${o.car}" stroke="${o.carEdge}" stroke-width="1.2"/><rect x="3" y="-7.5" width="8" height="15" rx="2.5" fill="${o.glass}"/><rect x="-12" y="-7" width="6" height="14" rx="2" fill="${o.glass}"/><rect x="-18" y="-7.5" width="2.6" height="4" rx="1" fill="${o.light}"/><rect x="-18" y="3.5" width="2.6" height="4" rx="1" fill="${o.light}"/></g>`;
+  }).join('');
+  const pts = Array.from({ length: 24 }, (_, i) => { const a = i * 15 * Math.PI / 180, r = i % 2 ? 46 : 53; return `${(160 + r * Math.sin(a)).toFixed(1)},${(130 - r * Math.cos(a)).toFixed(1)}`; }).join(' ');
+  return `<svg class="heroart" viewBox="0 0 320 260" role="img" aria-label="${esc(o.label)}"><rect width="320" height="260" fill="${o.bg}"/>${cars}<polygon points="${pts}" fill="${o.badge}" stroke="${o.bg}" stroke-width="8" stroke-linejoin="round"/>${o.center}</svg>`;
+}
 function authView(o) {
   const s = authUI, d = s.draft;
-  if (!s.step) s.step = LS.get('safar-' + o.app + '-known', false) ? 'login' : 'signup';
-  const hero = `<section class="hero">${o.logo}<h1>${o.name}</h1><p class="muted">${o.tagline}</p></section>`;
   const err = s.err ? `<p class="err" role="alert">${esc(s.err)}</p>` : '';
-  const phone = `<label class="field"><span>Mobile number</span><span class="tel"><span>+44</span><input id="au-phone" data-auth="phone" type="tel" inputmode="tel" autocomplete="tel-national" value="${esc(d.phone)}" placeholder="07700 900123"></span></label>`;
-  const pass = (auto) => `<label class="field"><span>Password</span><span class="tel pw"><input id="au-password" data-auth="password" type="${s.show ? 'text' : 'password'}" autocomplete="${auto}" value="${esc(d.password)}" placeholder="${auto === 'new-password' ? 'At least 8 characters' : 'Your password'}"><button type="button" class="linkbtn" data-act="togglePw">${s.show ? 'Hide' : 'Show'}</button></span></label>`;
   const busy = s.busy ? 'disabled' : '';
-  let sheet;
-  if (s.step === 'login') {
-    sheet = `<section class="sheet"><div class="stack tight"><h2>Log in</h2><p class="small muted">Use the mobile number and password for your ${o.name} account.</p></div>
-      ${phone}${pass('current-password')}${err}
-      <button class="btn block" data-act="login" ${busy}>${s.busy ? 'Logging in…' : 'Log in'}</button>
-      <p class="small center">New to ${o.name}? <button class="linkbtn" data-act="authStep" data-step="signup">Create an account</button></p></section>`;
-  } else {
-    sheet = `<section class="sheet"><div class="stack tight">${o.steps ? '<span class="label">Step 1 of 2</span>' : ''}<h2>${o.signupTitle}</h2><p class="small muted">${o.signupNote}</p></div>
+  const pass = (auto) => `<label class="field"><span>Password</span><span class="tel pw"><input id="au-password" data-auth="password" type="${s.show ? 'text' : 'password'}" autocomplete="${auto}" value="${esc(d.password)}" placeholder="${auto === 'new-password' ? 'At least 8 characters' : 'Your password'}"><button type="button" class="linkbtn" data-act="togglePw">${s.show ? 'Hide' : 'Show'}</button></span></label>`;
+  const who = `<div class="idchip"><span>${esc(s.kind === 'phone' && normPhone(s.ident) ? showPhone(normPhone(s.ident)) : s.ident)}</span><button class="linkbtn" data-act="authStep" data-step="start">Change</button></div>`;
+  let body;
+  if (s.step === 'password') {
+    body = `<div class="authbody"><h1 class="authh">Welcome back</h1>${who}${pass('current-password')}${err}
+      <button class="btn block authgo" data-act="login" ${busy}>${s.busy ? 'Logging in…' : 'Log in'}</button>
+      <p class="small muted">Forgotten your password? Password reset by email is coming soon.</p></div>`;
+  } else if (s.step === 'signup') {
+    const phoneField = `<label class="field"><span>Mobile number</span><span class="tel"><span>+44</span><input id="au-phone" data-auth="phone" type="tel" inputmode="tel" autocomplete="tel-national" value="${esc(d.phone)}" placeholder="07700 900123"></span></label>`;
+    const emailField = `<label class="field"><span>Email</span><input id="au-email" data-auth="email" type="email" autocomplete="email" value="${esc(d.email)}" placeholder="you@example.com"></label>`;
+    body = `<div class="authbody">${o.steps ? '<span class="label">Step 1 of 2</span>' : ''}<h1 class="authh">${o.signupTitle}</h1><p class="muted">${o.signupNote}</p>
       <label class="field"><span>Full name</span><input id="au-name" data-auth="name" autocomplete="name" value="${esc(d.name)}" placeholder="${o.namePh}"></label>
-      <label class="field"><span>Email</span><input id="au-email" data-auth="email" type="email" autocomplete="email" value="${esc(d.email)}" placeholder="you@example.com"></label>
-      ${phone}${pass('new-password')}
+      ${s.kind === 'email' ? emailField + phoneField : phoneField + emailField}${pass('new-password')}
       <div class="checks"><label><input type="checkbox" id="au-terms" data-auth="terms" ${d.terms ? 'checked' : ''}>${o.termsText}</label></div>
       ${err}
-      <button class="btn block" data-act="signup" ${busy}>${s.busy ? 'Creating your account…' : 'Create account'}</button>
-      <p class="small center">Already have an account? <button class="linkbtn" data-act="authStep" data-step="login">Log in</button></p></section>`;
+      <button class="btn block authgo" data-act="signup" ${busy}>${s.busy ? 'Creating your account…' : 'Create account'}</button>
+      <p class="small center">Already have an account? <button class="linkbtn" data-act="authStep" data-step="start">Log in</button></p></div>`;
+  } else {
+    body = `${heroArt(o.art)}<div class="authbody"><h1 class="authh big">${o.headline}</h1>
+      <label class="field"><span class="sr">Email or mobile number</span><input id="au-ident" class="identbox" data-ident type="text" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" value="${esc(s.ident)}" placeholder="Enter email or mobile number"></label>
+      ${err}
+      <button class="btn block authgo" data-act="authContinue" ${busy}>${s.busy ? 'Checking…' : 'Continue'}</button>
+      <p class="small muted authfine">${o.fine}</p></div>`;
   }
-  return `<main class="wrap">${hero}${sheet}<p class="foot">${o.other}</p></main>`;
+  return `<main class="authwrap">${body}<p class="foot">${o.other}</p></main>`;
 }
 const AuthActions = {
-  authStep: d => { authUI.step = d.step; authUI.err = ''; render(true); },
+  authStep: d => { authUI.step = d.step; authUI.err = ''; render(true); window.scrollTo(0, 0); },
   togglePw: () => { authUI.show = !authUI.show; render(true); },
-  login: async () => {
-    const d = authUI.draft, ph = normPhone(d.phone);
-    authUI.err = !ph ? 'Enter a UK mobile number, for example 07700 900123.' : !d.password ? 'Enter your password.' : '';
+  authContinue: async () => {
+    const raw = (authUI.ident || '').trim(), isEmail = raw.includes('@'), ph = normPhone(raw);
+    authUI.err = !raw ? 'Enter your email or mobile number.' : isEmail ? (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(raw) ? 'That email address doesn\'t look right. Check it and try again.' : '') : (!ph ? 'Enter a UK mobile number, for example 07700 900123, or an email.' : '');
     if (authUI.err) { render(true); return; }
-    authUI.busy = true; render(true);
-    try { Account.set(await rpc('safar_login', { p_app: Account.app, p_phone: ph, p_password: d.password })); authDone(false); }
-    catch (e) { authUI.err = e.message; }
+    authUI.kind = isEmail ? 'email' : 'phone'; authUI.busy = true; render(true);
+    try {
+      const r = await rpc('safar_lookup', { p_app: Account.app, p_ident: isEmail ? raw.toLowerCase() : ph });
+      authUI.draft.password = '';
+      if (r && r.exists) authUI.step = 'password';
+      else { authUI.step = 'signup'; if (isEmail) authUI.draft.email = raw.toLowerCase(); else authUI.draft.phone = raw; }
+    } catch (e) { authUI.err = e.message; }
+    authUI.busy = false; render(true); window.scrollTo(0, 0);
+    setTimeout(() => { const f = document.getElementById(authUI.step === 'password' ? 'au-password' : 'au-name'); if (f) f.focus(); }, 50);
+  },
+  login: async () => {
+    const d = authUI.draft, raw = authUI.ident.trim(), ident = authUI.kind === 'email' ? raw.toLowerCase() : normPhone(raw);
+    if (!d.password) { authUI.err = 'Enter your password.'; render(true); return; }
+    authUI.busy = true; authUI.err = ''; render(true);
+    try {
+      const r = await rpc('safar_login', { p_app: Account.app, p_phone: ident, p_password: d.password });
+      if (r && r.error) authUI.err = r.error; else { Account.set(r); authDone(false); }
+    } catch (e) { authUI.err = e.message; }
     authUI.busy = false; render(true);
   },
   signup: async () => {
@@ -374,13 +415,12 @@ const AuthActions = {
     authUI.busy = false; render(true);
   },
   logout: async () => {
-    const t = Account.token; Account.clear(); authUI.step = 'login'; authUI.draft.password = ''; render(true); window.scrollTo(0, 0);
+    const t = Account.token; Account.clear(); authUI.step = 'start'; authUI.draft.password = ''; render(true); window.scrollTo(0, 0);
     if (t) rpc('safar_logout', { p_token: t }).catch(() => {});
   }
 };
 function authDone(isNew) {
-  LS.set('safar-' + Account.app + '-known', true);
-  authUI.err = ''; authUI.draft = { name: '', email: '', phone: '', password: '', terms: false }; authUI.show = false;
+  authUI.err = ''; authUI.step = 'start'; authUI.ident = ''; authUI.draft = { name: '', email: '', phone: '', password: '', terms: false }; authUI.show = false;
   toast(APP_NAME, isNew ? `Welcome to ${APP_NAME}, ${first(Account.me.name)}.` : `Welcome back, ${first(Account.me.name)}.`);
   onLoggedIn();
 }
@@ -391,6 +431,7 @@ function render(force) {
   const a = document.activeElement;
   if (!force && a && a.closest && a.closest('#app') && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) { pendingRender = true; return; }
   pendingRender = false;
+  document.documentElement.classList.toggle('authscreen', !Account.token);
   document.getElementById('app').innerHTML = view();
   lastKey = viewKey();
 }
@@ -400,11 +441,11 @@ document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
   e.preventDefault(); const fn = AuthActions[el.dataset.act] || ACTIONS[el.dataset.act]; if (fn) fn(el.dataset);
 });
-document.addEventListener('input', e => { const t = e.target; if (t.dataset && t.dataset.auth) authUI.draft[t.dataset.auth] = t.type === 'checkbox' ? t.checked : t.value; });
+document.addEventListener('input', e => { const t = e.target; if (t.dataset && 'ident' in t.dataset) authUI.ident = t.value; if (t.dataset && t.dataset.auth) authUI.draft[t.dataset.auth] = t.type === 'checkbox' ? t.checked : t.value; });
 document.addEventListener('change', e => { const t = e.target; if (t.dataset && t.dataset.auth === 'terms') authUI.draft.terms = t.checked; });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter' || !e.target.id) return;
-  const map = { 'au-phone': authUI.step === 'login' ? 'login' : 'signup', 'au-password': authUI.step === 'login' ? 'login' : 'signup', pin: 'start' };
+  const map = { 'au-ident': 'authContinue', 'au-phone': 'signup', 'au-password': authUI.step === 'password' ? 'login' : 'signup', pin: 'start' };
   const act = map[e.target.id]; if (act) { const b = document.querySelector(`[data-act="${act}"]`); if (b) b.click(); }
 });
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
@@ -457,7 +498,10 @@ function notifyChanges(oldTrips, oldReq) {
 
 /* ---------- views ---------- */
 function view() {
-  if (!Account.token) return authView({ app: 'driver', name: APP_NAME, logo: LOGO_X, tagline: 'Drive around Leeds and earn on your own schedule.', steps: true, signupTitle: 'Create your driver account', signupNote: 'Next you add your car. Riders see your first name and number plate.', namePh: 'Bilal Ahmed', termsText: 'I agree to the Safar X terms and privacy policy, and confirm I am 21 or over', other: 'Need a ride? Get the <b>Safar Rides</b> app.' });
+  if (!Account.token) return authView({ app: 'driver', headline: 'Drive and earn with Safar X.', steps: true, signupTitle: 'Create your driver account', signupNote: 'Next you add your car. Riders see your first name and number plate.', namePh: 'Bilal Ahmed', termsText: 'I agree to the Safar X terms and privacy policy, and confirm I am 21 or over',
+    fine: 'By continuing you agree to the Safar X terms and privacy policy. You need a private hire licence to drive.', other: 'Need a ride? Get the <b>Safar Rides</b> app.',
+    art: { label: 'Safar X cars circling the Safar X logo', bg: '#14171f', car: '#2a2f3a', carEdge: '#3b4252', glass: '#0a0c10', light: '#f5b301', badge: '#f5b301',
+      center: '<path d="M144 114 L176 146 M176 114 L144 146" stroke="#161105" stroke-width="10" stroke-linecap="round"/>' } });
   const me = Account.me || { name: '' }, head = `<header class="top"><div class="top-in">${LOGO_X}<b>Safar X</b></div></header>`;
   if (!vehicle() || ui.editCar) return head + `<main class="wrap">${carForm()}${vehicle() ? '' : '<p class="foot"><button class="linkbtn" data-act="logout">Log out</button></p>'}</main>`;
   const v = vehicle(), job = myJob(), reqs = openRequests();
